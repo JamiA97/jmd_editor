@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 
+
 class EditorFrame(tk.Frame):
     def __init__(self, parent, update_viewer_callback):
         super().__init__(parent)
@@ -12,10 +13,20 @@ class EditorFrame(tk.Frame):
         self.text_area.pack(fill=tk.BOTH, expand=True)
         self.text_area.bind("<<Modified>>", self.on_text_change)
 
+        # Debounce variables
+        self._debounce_delay = 300  # milliseconds
+        self._debounce_job = None
+
     def on_text_change(self, event=None):
         if self.text_area.edit_modified():
-            self.update_viewer_callback()
+            if self._debounce_job is not None:
+                self.after_cancel(self._debounce_job)
+            self._debounce_job = self.after(self._debounce_delay, self.trigger_update)
             self.text_area.edit_modified(False)
+
+    def trigger_update(self):
+        self.update_viewer_callback()
+        self._debounce_job = None
 
     def get_content(self):
         return self.text_area.get("1.0", tk.END)
@@ -29,4 +40,3 @@ class EditorFrame(tk.Frame):
 
     def redo(self):
         self.text_area.edit_redo()
-

@@ -4,6 +4,7 @@ import re
 import base64
 from io import BytesIO
 import tkinter as tk
+from tkinter import ttk
 from tkinterweb import HtmlFrame  # Import HtmlFrame from tkinterweb
 from markdown import markdown
 from PIL import Image
@@ -43,8 +44,8 @@ class ViewerFrame(tk.Frame):
         # Bind canvas resizing to dynamically adjust layout
         self.canvas.bind('<Configure>', self._on_canvas_resize)
 
-        # Keep references to PhotoImage objects to prevent garbage collection
-        self.image_refs = {}
+        # Image cache to store processed data URIs
+        self.image_cache = {}
 
     def update_content(self, markdown_text):
         """
@@ -70,6 +71,7 @@ class ViewerFrame(tk.Frame):
     def _process_image_paths(self, markdown_text):
         """
         Preprocess Markdown to handle local image paths by converting them to Base64 data URIs.
+        Implements caching to avoid reprocessing images that have already been processed.
         """
 
         # Match Markdown image syntax ![alt text](path)
@@ -95,34 +97,43 @@ class ViewerFrame(tk.Frame):
                 return f"![{alt_text}](Image not found: {image_path})"
 
             try:
-                # Determine the resampling filter based on Pillow version
-                try:
-                    resample = Image.Resampling.LANCZOS
-                except AttributeError:
-                    # For Pillow versions < 10.0.0
-                    resample = Image.LANCZOS
+                # Check if the image has already been processed and cached
+                if abs_image_path in self.image_cache:
+                    data_uri = self.image_cache[abs_image_path]
+                    print(f"Using cached data URI for image: {abs_image_path}")
+                else:
+                    # Determine the resampling filter based on Pillow version
+                    try:
+                        resample = Image.Resampling.LANCZOS
+                    except AttributeError:
+                        # For Pillow versions < 10.0.0
+                        resample = Image.LANCZOS
 
-                # Open the image and convert to Base64
-                with Image.open(abs_image_path) as img:
-                    print(f"Image mode: {img.mode}")
-                    print(f"Image format: {img.format}")
+                    # Open the image and convert to Base64
+                    with Image.open(abs_image_path) as img:
+                        print(f"Image mode: {img.mode}")
+                        print(f"Image format: {img.format}")
 
-                    # Convert image to RGB or RGBA if it's in a different mode
-                    if img.mode not in ("RGB", "RGBA"):
-                        img = img.convert("RGBA")
+                        # Convert image to RGB or RGBA if it's in a different mode
+                        if img.mode not in ("RGB", "RGBA"):
+                            img = img.convert("RGBA")
 
-                    # Optionally, resize the image to a reasonable size
-                    img.thumbnail((800, 800), resample)
+                        # Optionally, resize the image to a reasonable size
+                        img.thumbnail((800, 800), resample)
 
-                    buffered = BytesIO()
-                    img_format = img.format if img.format else 'PNG'
-                    img.save(buffered, format=img_format)
-                    img_bytes = buffered.getvalue()
-                    img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-                    mime_type = Image.MIME.get(img_format, 'image/png')
-                    data_uri = f"data:{mime_type};base64,{img_base64}"
-                    print(f"Successfully processed image: {abs_image_path}")
-                    return f'![{alt_text}]({data_uri})'
+                        buffered = BytesIO()
+                        img_format = img.format if img.format else 'PNG'
+                        img.save(buffered, format=img_format)
+                        img_bytes = buffered.getvalue()
+                        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+                        mime_type = Image.MIME.get(img_format, 'image/png')
+                        data_uri = f"data:{mime_type};base64,{img_base64}"
+
+                        # Cache the processed data URI
+                        self.image_cache[abs_image_path] = data_uri
+                        print(f"Successfully processed and cached image: {abs_image_path}")
+
+                return f'![{alt_text}]({data_uri})'
             except Exception as e:
                 print(f"Error processing image {abs_image_path}: {e}")
                 return f"![{alt_text}](Error loading image: {image_path})"
