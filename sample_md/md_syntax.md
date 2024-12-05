@@ -30,12 +30,16 @@ Like this :)
 Line breaks are done with a double space at the end  
 Like this :)  
 
+![Images like this](tux.png)
 
-
-![Images like this](file:///home/jamie/Programming/venv_Python/jmd_editor/tux.png)
 
 
   
+
+
+
+  
+
 
 
 
