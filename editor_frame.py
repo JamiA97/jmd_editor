@@ -2,6 +2,11 @@
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 
+# Define color variables
+BACKGROUND = "#FFFFEE"  # Light cream background
+TEXT_COLOR = "#222"  # Dark text color
+
+
 
 class EditorFrame(tk.Frame):
     def __init__(self, parent, update_viewer_callback, custom_font=None):
@@ -9,7 +14,7 @@ class EditorFrame(tk.Frame):
         self.update_viewer_callback = update_viewer_callback
 
         # Editor area
-        self.text_area = ScrolledText(self, wrap=tk.WORD, undo=True)
+        self.text_area = ScrolledText(self, wrap=tk.WORD, undo=True, bg=BACKGROUND, fg=TEXT_COLOR, insertbackground=TEXT_COLOR)
         if custom_font:
             self.text_area.configure(font=custom_font)
         self.text_area.pack(fill=tk.BOTH, expand=True)

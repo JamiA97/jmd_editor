@@ -19,7 +19,7 @@ class MarkdownEditorApp:
             self.custom_font = font.Font(file=font_path, size=12)  # Create a tkinter font object
         except Exception as e:
             print(f"Error loading custom font: {e}")
-            self.custom_font = font.Font(family="TkDefaultFont", size=12)  # Fallback to default font
+            self.custom_font = font.Font(family="TkDefaultFont", size=18)  # Fallback to default font
 
         # Initialize a BooleanVar to track preview visibility
         self.preview_visible = tk.BooleanVar(value=True)
@@ -32,7 +32,9 @@ class MarkdownEditorApp:
 
         # Initialize editor and viewer frames
         self.editor_frame = EditorFrame(self.paned_window, self.update_viewer, self.custom_font)
-        self.viewer_frame = ViewerFrame(self.paned_window)
+        self.viewer_frame = ViewerFrame(self.paned_window, custom_font=self.custom_font)
+
+        # self.viewer_frame = ViewerFrame(self.paned_window)
 
         # Add frames to the PanedWindow
         self.paned_window.add(self.editor_frame, stretch="always")
