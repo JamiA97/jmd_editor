@@ -4,12 +4,14 @@ from tkinter.scrolledtext import ScrolledText
 
 
 class EditorFrame(tk.Frame):
-    def __init__(self, parent, update_viewer_callback):
+    def __init__(self, parent, update_viewer_callback, custom_font=None):
         super().__init__(parent)
         self.update_viewer_callback = update_viewer_callback
 
         # Editor area
         self.text_area = ScrolledText(self, wrap=tk.WORD, undo=True)
+        if custom_font:
+            self.text_area.configure(font=custom_font)
         self.text_area.pack(fill=tk.BOTH, expand=True)
         self.text_area.bind("<<Modified>>", self.on_text_change)
 

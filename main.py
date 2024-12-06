@@ -1,6 +1,7 @@
 # main.py
 
 import tkinter as tk
+from tkinter import font
 from editor_frame import EditorFrame
 from viewer_frame import ViewerFrame
 from file_manager import FileManager
@@ -10,9 +11,17 @@ class MarkdownEditorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Simple Markdown Editor")
-        self.root.geometry("1000x700")  # Increased size for better visibility
+        self.root.geometry("1000x700")  # Set initial window size
 
-        # Initialize the BooleanVar to track preview visibility
+        # Load custom font
+        font_path = "assets/Raleway/Raleway-VariableFont_wght.ttf"
+        try:
+            self.custom_font = font.Font(file=font_path, size=12)  # Create a tkinter font object
+        except Exception as e:
+            print(f"Error loading custom font: {e}")
+            self.custom_font = font.Font(family="TkDefaultFont", size=12)  # Fallback to default font
+
+        # Initialize a BooleanVar to track preview visibility
         self.preview_visible = tk.BooleanVar(value=True)
 
         # Create a PanedWindow to hold the editor and viewer frames
@@ -22,7 +31,7 @@ class MarkdownEditorApp:
         self.paned_window.pack(fill=tk.BOTH, expand=True)
 
         # Initialize editor and viewer frames
-        self.editor_frame = EditorFrame(self.paned_window, self.update_viewer)
+        self.editor_frame = EditorFrame(self.paned_window, self.update_viewer, self.custom_font)
         self.viewer_frame = ViewerFrame(self.paned_window)
 
         # Add frames to the PanedWindow
@@ -36,10 +45,11 @@ class MarkdownEditorApp:
         self.setup_menu()
 
     def setup_menu(self):
+        """Set up the application menu."""
         menu_bar = tk.Menu(self.root)
         file_menu = tk.Menu(menu_bar, tearoff=0)
         edit_menu = tk.Menu(menu_bar, tearoff=0)
-        view_menu = tk.Menu(menu_bar, tearoff=0)  # New View menu
+        view_menu = tk.Menu(menu_bar, tearoff=0)  # View menu for toggling the preview
 
         # File menu options
         file_menu.add_command(label="Open", accelerator="Ctrl+O", command=self.file_manager.open_file)
@@ -65,13 +75,14 @@ class MarkdownEditorApp:
         # Add menus to menu bar
         menu_bar.add_cascade(label="File", menu=file_menu)
         menu_bar.add_cascade(label="Edit", menu=edit_menu)
-        menu_bar.add_cascade(label="View", menu=view_menu)  # Add View menu to the menu bar
+        menu_bar.add_cascade(label="View", menu=view_menu)  # Add View menu
         self.root.config(menu=menu_bar)
 
         # Bind keyboard shortcuts
         self.bind_shortcuts()
 
     def bind_shortcuts(self):
+        """Bind keyboard shortcuts for common actions."""
         self.root.bind("<Control-o>", lambda event: self.file_manager.open_file())
         self.root.bind("<Control-s>", lambda event: self.file_manager.save_file())
         self.root.bind("<Control-S>", lambda event: self.file_manager.save_file_as())
@@ -79,19 +90,16 @@ class MarkdownEditorApp:
         self.root.bind("<Control-y>", lambda event: self.editor_frame.redo())
 
     def toggle_preview(self):
-        """
-        Show or hide the preview pane based on the state of 'Show Preview' toggle.
-        """
+        """Show or hide the preview pane based on the 'Show Preview' toggle."""
         if self.preview_visible.get():
-            # Show the preview pane
             self.paned_window.add(self.viewer_frame, stretch="always")
             print("Preview pane shown.")
         else:
-            # Hide the preview pane
             self.paned_window.forget(self.viewer_frame)
             print("Preview pane hidden.")
 
     def update_viewer(self):
+        """Update the viewer with the latest content from the editor."""
         content = self.editor_frame.get_content()
         self.viewer_frame.update_content(content)
 
