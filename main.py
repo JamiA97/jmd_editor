@@ -1,112 +1,119 @@
-# main.py
-
-import tkinter as tk
-from tkinter import font
-from editor_frame import EditorFrame
-from viewer_frame import ViewerFrame
+import sys
+import os
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
+                             QMessageBox, QSplitter, QWidget, QVBoxLayout, QCheckBox, QFrame)
+from PyQt5.QtCore import Qt, QTimer
+from editor_widget import EditorWidget
+from viewer_widget import ViewerWidget
 from file_manager import FileManager
 
 
-class MarkdownEditorApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Simple Markdown Editor")
-        self.root.geometry("1000x700")  # Set initial window size
+class MarkdownEditorApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Simple Markdown Editor (PyQt5 Version)")
+        self.resize(1000, 700)
 
-        # Load custom font
-        font_path = "assets/Raleway/Raleway-VariableFont_wght.ttf"
-        try:
-            self.custom_font = font.Font(file=font_path, size=12)  # Create a tkinter font object
-        except Exception as e:
-            print(f"Error loading custom font: {e}")
-            self.custom_font = font.Font(family="TkDefaultFont", size=18)  # Fallback to default font
+        # Initialize central widget and layout
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # Initialize a BooleanVar to track preview visibility
-        self.preview_visible = tk.BooleanVar(value=True)
+        # Create a QSplitter for the editor and viewer
+        self.splitter = QSplitter(Qt.Horizontal, self)
+        layout.addWidget(self.splitter)
 
-        # Create a PanedWindow to hold the editor and viewer frames
-        self.paned_window = tk.PanedWindow(
-            self.root, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=5
-        )
-        self.paned_window.pack(fill=tk.BOTH, expand=True)
+        # Initialize editor and viewer
+        self.editor = EditorWidget(self.update_viewer)
+        self.viewer = ViewerWidget()
 
-        # Initialize editor and viewer frames
-        self.editor_frame = EditorFrame(self.paned_window, self.update_viewer, self.custom_font)
-        self.viewer_frame = ViewerFrame(self.paned_window, custom_font=self.custom_font)
+        # Add them to the splitter
+        self.splitter.addWidget(self.editor)
+        self.splitter.addWidget(self.viewer)
 
-        # self.viewer_frame = ViewerFrame(self.paned_window)
+        # File manager
+        self.file_manager = FileManager(self.editor)
 
-        # Add frames to the PanedWindow
-        self.paned_window.add(self.editor_frame, stretch="always")
-        self.paned_window.add(self.viewer_frame, stretch="always")
+        # Initialize preview visibility state
+        self.preview_visible = True
 
-        # Initialize file manager
-        self.file_manager = FileManager(self.editor_frame)
-
-        # Menu setup
+        # Set up menu
         self.setup_menu()
 
+        # Set an initial example Markdown content
+        example_markdown = """
+# Example Markdown
+
+This is **bold text** and *italic text*.
+
+Math: $E = mc^2$
+
+Block math:
+$$
+\\frac{d}{dx}f(x)=f'(x)
+$$
+
+[Link to Markdown Guide](https://www.markdownguide.org)
+"""
+        self.editor.set_content(example_markdown)
+        self.update_viewer()  # Initial render
+
     def setup_menu(self):
-        """Set up the application menu."""
-        menu_bar = tk.Menu(self.root)
-        file_menu = tk.Menu(menu_bar, tearoff=0)
-        edit_menu = tk.Menu(menu_bar, tearoff=0)
-        view_menu = tk.Menu(menu_bar, tearoff=0)  # View menu for toggling the preview
+        menu_bar = QMenuBar(self)
+        self.setMenuBar(menu_bar)
 
-        # File menu options
-        file_menu.add_command(label="Open", accelerator="Ctrl+O", command=self.file_manager.open_file)
-        file_menu.add_command(label="Save", accelerator="Ctrl+S", command=self.file_manager.save_file)
-        file_menu.add_command(label="Save As", accelerator="Ctrl+Shift+S", command=self.file_manager.save_file_as)
-        file_menu.add_command(label="Close", command=self.file_manager.close_file)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.root.quit)
+        file_menu = menu_bar.addMenu("File")
+        edit_menu = menu_bar.addMenu("Edit")
+        view_menu = menu_bar.addMenu("View")
 
-        # Edit menu options
-        edit_menu.add_command(label="Undo", accelerator="Ctrl+Z", command=self.editor_frame.undo)
-        edit_menu.add_command(label="Redo", accelerator="Ctrl+Y", command=self.editor_frame.redo)
+        # File menu actions
+        open_act = QAction("Open", self, shortcut="Ctrl+O", triggered=self.file_manager.open_file)
+        save_act = QAction("Save", self, shortcut="Ctrl+S", triggered=self.file_manager.save_file)
+        save_as_act = QAction("Save As", self, shortcut="Ctrl+Shift+S", triggered=self.file_manager.save_file_as)
+        close_act = QAction("Close", self, triggered=self.file_manager.close_file)
+        exit_act = QAction("Exit", self, triggered=self.close)
 
-        # View menu options
-        view_menu.add_checkbutton(
-            label="Show Preview",
-            variable=self.preview_visible,
-            onvalue=True,
-            offvalue=False,
-            command=self.toggle_preview
-        )
+        file_menu.addAction(open_act)
+        file_menu.addAction(save_act)
+        file_menu.addAction(save_as_act)
+        file_menu.addAction(close_act)
+        file_menu.addSeparator()
+        file_menu.addAction(exit_act)
 
-        # Add menus to menu bar
-        menu_bar.add_cascade(label="File", menu=file_menu)
-        menu_bar.add_cascade(label="Edit", menu=edit_menu)
-        menu_bar.add_cascade(label="View", menu=view_menu)  # Add View menu
-        self.root.config(menu=menu_bar)
+        # Edit menu actions
+        undo_act = QAction("Undo", self, shortcut="Ctrl+Z", triggered=self.editor.undo)
+        redo_act = QAction("Redo", self, shortcut="Ctrl+Y", triggered=self.editor.redo)
+        edit_menu.addAction(undo_act)
+        edit_menu.addAction(redo_act)
 
-        # Bind keyboard shortcuts
-        self.bind_shortcuts()
-
-    def bind_shortcuts(self):
-        """Bind keyboard shortcuts for common actions."""
-        self.root.bind("<Control-o>", lambda event: self.file_manager.open_file())
-        self.root.bind("<Control-s>", lambda event: self.file_manager.save_file())
-        self.root.bind("<Control-S>", lambda event: self.file_manager.save_file_as())
-        self.root.bind("<Control-z>", lambda event: self.editor_frame.undo())
-        self.root.bind("<Control-y>", lambda event: self.editor_frame.redo())
+        # View menu actions (Show Preview)
+        self.show_preview_act = QAction("Show Preview", self, checkable=True, checked=True)
+        self.show_preview_act.triggered.connect(self.toggle_preview)
+        view_menu.addAction(self.show_preview_act)
 
     def toggle_preview(self):
-        """Show or hide the preview pane based on the 'Show Preview' toggle."""
-        if self.preview_visible.get():
-            self.paned_window.add(self.viewer_frame, stretch="always")
-            print("Preview pane shown.")
+        if self.show_preview_act.isChecked():
+            # Show preview
+            if self.viewer not in [self.splitter.widget(i) for i in range(self.splitter.count())]:
+                self.splitter.addWidget(self.viewer)
         else:
-            self.paned_window.forget(self.viewer_frame)
-            print("Preview pane hidden.")
+            # Hide preview
+            idx = None
+            for i in range(self.splitter.count()):
+                if self.splitter.widget(i) is self.viewer:
+                    idx = i
+                    break
+            if idx is not None:
+                self.splitter.widget(idx).setParent(None)
 
     def update_viewer(self):
-        """Update the viewer with the latest content from the editor."""
-        content = self.editor_frame.get_content()
-        self.viewer_frame.update_content(content)
+        content = self.editor.get_content()
+        self.viewer.update_content(content)
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = MarkdownEditorApp(root)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = MarkdownEditorApp()
+    window.show()
+    sys.exit(app.exec_())
