@@ -4,9 +4,6 @@ from PyQt5.QtCore import QUrl
 from markdown import markdown
 from mdx_math import MathExtension
 
-# This widget replaces the tkinterweb HtmlFrame with QWebEngineView.
-# It supports JS execution and KaTeX rendering.
-# The "Back" button restores the original Markdown preview after clicking links.
 
 class ViewerPage(QWebEnginePage):
     """
@@ -69,9 +66,21 @@ class ViewerWidget(QWidget):
         katex_script = """
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
         <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"
-                onload="renderMathInElement(document.body);"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: "$$", right: "$$", display: true},  // Block math
+                        {left: "\\[", right: "\\]", display: true},  // Alternative block math
+                        {left: "$", right: "$", display: false},  // Inline math
+                        {left: "\\(", right: "\\)", display: false}  // Alternative inline math
+                    ]
+                });
+            });
+        </script>
         """
+
 
         style = """
         <style>
@@ -94,6 +103,10 @@ class ViewerWidget(QWidget):
         <body>{html_content}</body>
         </html>
         """
+        
+        # Save the HTML to debug file
+        with open("debug.html", "w", encoding="utf-8") as f:
+            f.write(final_html)
 
         # Load the HTML into the QWebEngineView
         self.webview.setHtml(final_html, QUrl("about:blank"))

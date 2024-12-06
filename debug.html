@@ -1,0 +1,42 @@
+
+        <!DOCTYPE html>
+        <html>
+        <head>
+        
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: "$$", right: "$$", display: true},  // Block math
+                        {left: "\[", right: "\]", display: true},  // Alternative block math
+                        {left: "$", right: "$", display: false},  // Inline math
+                        {left: "\(", right: "\)", display: false}  // Alternative inline math
+                    ]
+                });
+            });
+        </script>
+        
+        
+        <style>
+            body {
+                font-family: 'Arial';
+                font-size: 14px;
+                color: #222;
+                background-color: #FFFFEE;
+            }
+        </style>
+        
+        </head>
+        <body><h1>Example Markdown</h1>
+<p>This is <strong>bold text</strong> and <em>italic text</em>.</p>
+<p>Math: $E = mc^2$</p>
+<p>Block math:
+$
+\frac{d}{dx}f(x)=f'(x)
+$</p>
+<p><a href="https://www.markdownguide.org">Link to Markdown Guide</a></p></body>
+        </html>
+        
