@@ -6,6 +6,8 @@ from PyQt5.QtCore import Qt, QTimer
 from editor_widget import EditorWidget
 from viewer_widget import ViewerWidget
 from file_manager import FileManager
+from PyQt5.QtGui import QFontDatabase, QFont
+
 
 
 class MarkdownEditorApp(QMainWindow):
@@ -13,6 +15,17 @@ class MarkdownEditorApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("Simple Markdown Editor (PyQt5 Version)")
         self.resize(1000, 700)
+
+        # Load the custom font
+        font_path = os.path.join("assets", "fonts", "Raleway-VariableFont_wght.ttf")
+        if QFontDatabase.addApplicationFont(font_path) == -1:
+            print("Error: Failed to load the Raleway font.")
+        else:
+            print("Raleway font loaded successfully.")
+
+        # Set the default font for the application
+        raleway_font = QFont("Raleway", 12)
+        QApplication.setFont(raleway_font)
 
         # Initialize central widget and layout
         central_widget = QWidget(self)

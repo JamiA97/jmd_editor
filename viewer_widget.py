@@ -3,6 +3,8 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtCore import QUrl
 from markdown import markdown
 from mdx_math import MathExtension
+from PyQt5.QtGui import QFontDatabase, QFont
+import os
 
 
 class ViewerPage(QWebEnginePage):
@@ -12,7 +14,10 @@ class ViewerPage(QWebEnginePage):
     """
     def __init__(self, parent=None, on_link_clicked=None):
         super().__init__(parent)
-        self.on_link_clicked = on_link_clicked
+        self.on_link_clicked = on_link_clicked        
+        
+
+
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         # If it's a user click on a link, handle it
@@ -40,6 +45,10 @@ class ViewerWidget(QWidget):
 
         self.webview = QWebEngineView(self)
         self.layout.addWidget(self.webview)
+
+        # Apply the Raleway font
+        specific_font = QFont("Raleway", 14)
+        self.webview.setFont(specific_font)
 
         # Store current markdown and original HTML for "Back" functionality
         self.current_markdown = ""
@@ -82,14 +91,18 @@ class ViewerWidget(QWidget):
         """
 
 
-        style = """
+        style = f"""
         <style>
-            body {
-                font-family: 'Arial';
+            @font-face {{
+                font-family: 'Raleway';
+                src: url('file:///{os.path.abspath(os.path.join("assets", "fonts", "Raleway-VariableFont_wght.ttf"))}');
+            }}
+            body {{
+                font-family: 'Raleway', sans-serif;
                 font-size: 14px;
                 color: #222;
                 background-color: #FFFFEE;
-            }
+            }}
         </style>
         """
 
