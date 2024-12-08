@@ -67,9 +67,9 @@ This is **bold text** and *italic text*.
 Math: $E = mc^2$
 
 Block math:
-$$
+$
 \\frac{d}{dx}f(x)=f'(x)
-$$
+$
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 """
