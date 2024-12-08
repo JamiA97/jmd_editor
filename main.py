@@ -49,6 +49,9 @@ class MarkdownEditorApp(QMainWindow):
         self.splitter.addWidget(self.editor)
         self.splitter.addWidget(self.viewer)
 
+        # Set initial sizes for the panes
+        self.splitter.setSizes([200, 500, 300])
+
         # File manager
         self.file_manager = FileManager(self.editor)
 
