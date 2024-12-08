@@ -17,7 +17,7 @@ class MarkdownEditorApp(QMainWindow):
         self.resize(1000, 700)
 
         # Load the custom font
-        font_path = os.path.join("assets", "fonts", "Raleway-VariableFont_wght.ttf")
+        font_path = os.path.join("assets", "Raleway", "Raleway-VariableFont_wght.ttf")
         if QFontDatabase.addApplicationFont(font_path) == -1:
             print("Error: Failed to load the Raleway font.")
         else:
@@ -80,45 +80,50 @@ $$
         edit_menu = menu_bar.addMenu("Edit")
         view_menu = menu_bar.addMenu("View")
 
-        # File menu actions
         open_act = QAction("Open", self, shortcut="Ctrl+O", triggered=self.file_manager.open_file)
         save_act = QAction("Save", self, shortcut="Ctrl+S", triggered=self.file_manager.save_file)
         save_as_act = QAction("Save As", self, shortcut="Ctrl+Shift+S", triggered=self.file_manager.save_file_as)
-        close_act = QAction("Close", self, triggered=self.file_manager.close_file)
         exit_act = QAction("Exit", self, triggered=self.close)
 
         file_menu.addAction(open_act)
         file_menu.addAction(save_act)
         file_menu.addAction(save_as_act)
-        file_menu.addAction(close_act)
         file_menu.addSeparator()
         file_menu.addAction(exit_act)
 
-        # Edit menu actions
         undo_act = QAction("Undo", self, shortcut="Ctrl+Z", triggered=self.editor.undo)
         redo_act = QAction("Redo", self, shortcut="Ctrl+Y", triggered=self.editor.redo)
         edit_menu.addAction(undo_act)
         edit_menu.addAction(redo_act)
 
-        # View menu actions (Show Preview)
+        self.show_editor_act = QAction("Show Editor", self, checkable=True, checked=True)
+        self.show_editor_act.triggered.connect(self.toggle_editor)
+        view_menu.addAction(self.show_editor_act)
+
         self.show_preview_act = QAction("Show Preview", self, checkable=True, checked=True)
         self.show_preview_act.triggered.connect(self.toggle_preview)
         view_menu.addAction(self.show_preview_act)
 
+    def toggle_editor(self):
+        if self.show_editor_act.isChecked():
+            self.splitter.addWidget(self.editor)
+        else:
+            self.editor.setParent(None)
+
+        if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
+            self.show_preview_act.setChecked(True)
+            self.toggle_preview()
+
     def toggle_preview(self):
         if self.show_preview_act.isChecked():
-            # Show preview
-            if self.viewer not in [self.splitter.widget(i) for i in range(self.splitter.count())]:
-                self.splitter.addWidget(self.viewer)
+            self.splitter.addWidget(self.viewer)
         else:
-            # Hide preview
-            idx = None
-            for i in range(self.splitter.count()):
-                if self.splitter.widget(i) is self.viewer:
-                    idx = i
-                    break
-            if idx is not None:
-                self.splitter.widget(idx).setParent(None)
+            self.viewer.setParent(None)
+
+        if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
+            self.show_editor_act.setChecked(True)
+            self.toggle_editor()
+
 
     def update_viewer(self):
         content = self.editor.get_content()

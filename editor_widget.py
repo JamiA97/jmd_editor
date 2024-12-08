@@ -17,6 +17,18 @@ class EditorWidget(QWidget):
         specific_font = QFont("Raleway", 14)
         self.text_edit.setFont(specific_font)
 
+        # Set the background color to match the viewer
+        self.text_edit.setStyleSheet("""
+            QTextEdit {
+                background-color: #FFFFEE;
+                color: #222;  /* Match the viewer text color */
+                border: none;
+                font-weight: 600; /* Match the viewer font weight */
+                font-family: 'Raleway', sans-serif;
+            }
+        """)
+
+
 
         # Debounce similar to Tkinter version
         self._debounce_delay = 300

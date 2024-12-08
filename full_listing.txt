@@ -1,0 +1,398 @@
+I want you to help me with an app I am working on. The app is a markdown editor with a live preview. I want you to help me with some modeifications. 
+Below I have listed my program files. Do not write any code yet.
+
+Here are my program files: 
+
+main.py
+
+import sys
+import os
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
+                             QMessageBox, QSplitter, QWidget, QVBoxLayout, QCheckBox, QFrame)
+from PyQt5.QtCore import Qt, QTimer
+from editor_widget import EditorWidget
+from viewer_widget import ViewerWidget
+from file_manager import FileManager
+from PyQt5.QtGui import QFontDatabase, QFont
+
+
+
+class MarkdownEditorApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Simple Markdown Editor (PyQt5 Version)")
+        self.resize(1000, 700)
+
+        # Load the custom font
+        font_path = os.path.join("assets", "fonts", "Raleway-VariableFont_wght.ttf")
+        if QFontDatabase.addApplicationFont(font_path) == -1:
+            print("Error: Failed to load the Raleway font.")
+        else:
+            print("Raleway font loaded successfully.")
+
+        # Set the default font for the application
+        raleway_font = QFont("Raleway", 12)
+        QApplication.setFont(raleway_font)
+
+        # Initialize central widget and layout
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create a QSplitter for the editor and viewer
+        self.splitter = QSplitter(Qt.Horizontal, self)
+        layout.addWidget(self.splitter)
+
+        # Initialize editor and viewer
+        self.editor = EditorWidget(self.update_viewer)
+        self.viewer = ViewerWidget()
+
+        # Add them to the splitter
+        self.splitter.addWidget(self.editor)
+        self.splitter.addWidget(self.viewer)
+
+        # File manager
+        self.file_manager = FileManager(self.editor)
+
+        # Initialize preview visibility state
+        self.preview_visible = True
+
+        # Set up menu
+        self.setup_menu()
+
+        # Set an initial example Markdown content
+        example_markdown = """
+# Example Markdown
+
+This is **bold text** and *italic text*.
+
+Math: $E = mc^2$
+
+Block math:
+$$
+\\frac{d}{dx}f(x)=f'(x)
+$$
+
+[Link to Markdown Guide](https://www.markdownguide.org)
+"""
+        self.editor.set_content(example_markdown)
+        self.update_viewer()  # Initial render
+
+    def setup_menu(self):
+        menu_bar = QMenuBar(self)
+        self.setMenuBar(menu_bar)
+
+        file_menu = menu_bar.addMenu("File")
+        edit_menu = menu_bar.addMenu("Edit")
+        view_menu = menu_bar.addMenu("View")
+
+        # File menu actions
+        open_act = QAction("Open", self, shortcut="Ctrl+O", triggered=self.file_manager.open_file)
+        save_act = QAction("Save", self, shortcut="Ctrl+S", triggered=self.file_manager.save_file)
+        save_as_act = QAction("Save As", self, shortcut="Ctrl+Shift+S", triggered=self.file_manager.save_file_as)
+        close_act = QAction("Close", self, triggered=self.file_manager.close_file)
+        exit_act = QAction("Exit", self, triggered=self.close)
+
+        file_menu.addAction(open_act)
+        file_menu.addAction(save_act)
+        file_menu.addAction(save_as_act)
+        file_menu.addAction(close_act)
+        file_menu.addSeparator()
+        file_menu.addAction(exit_act)
+
+        # Edit menu actions
+        undo_act = QAction("Undo", self, shortcut="Ctrl+Z", triggered=self.editor.undo)
+        redo_act = QAction("Redo", self, shortcut="Ctrl+Y", triggered=self.editor.redo)
+        edit_menu.addAction(undo_act)
+        edit_menu.addAction(redo_act)
+
+        # View menu actions (Show Preview)
+        self.show_preview_act = QAction("Show Preview", self, checkable=True, checked=True)
+        self.show_preview_act.triggered.connect(self.toggle_preview)
+        view_menu.addAction(self.show_preview_act)
+
+    def toggle_preview(self):
+        if self.show_preview_act.isChecked():
+            # Show preview
+            if self.viewer not in [self.splitter.widget(i) for i in range(self.splitter.count())]:
+                self.splitter.addWidget(self.viewer)
+        else:
+            # Hide preview
+            idx = None
+            for i in range(self.splitter.count()):
+                if self.splitter.widget(i) is self.viewer:
+                    idx = i
+                    break
+            if idx is not None:
+                self.splitter.widget(idx).setParent(None)
+
+    def update_viewer(self):
+        content = self.editor.get_content()
+        self.viewer.update_content(content)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MarkdownEditorApp()
+    window.show()
+    sys.exit(app.exec_())
+
+editor_widget.py
+
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit
+from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QFontDatabase, QFont
+
+# This replaces the Tkinter ScrolledText editor.
+# The logic remains similar: when text changes, we schedule an update of the preview.
+
+class EditorWidget(QWidget):
+    def __init__(self, update_viewer_callback):
+        super().__init__()
+        self.update_viewer_callback = update_viewer_callback
+        self.layout = QVBoxLayout(self)
+        self.text_edit = QTextEdit(self)
+        self.layout.addWidget(self.text_edit)
+
+        # Apply the Raleway font
+        specific_font = QFont("Raleway", 14)
+        self.text_edit.setFont(specific_font)
+
+
+        # Debounce similar to Tkinter version
+        self._debounce_delay = 300
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.timeout.connect(self.trigger_update)
+
+        # Connect text change signal
+        self.text_edit.textChanged.connect(self.on_text_change)
+
+    def on_text_change(self):
+        # When text changes, restart the debounce timer
+        if self._debounce_timer.isActive():
+            self._debounce_timer.stop()
+        self._debounce_timer.start(self._debounce_delay)
+
+    def trigger_update(self):
+        self.update_viewer_callback()
+
+    def get_content(self):
+        return self.text_edit.toPlainText()
+
+    def set_content(self, content):
+        self.text_edit.setPlainText(content)
+
+    def undo(self):
+        self.text_edit.undo()
+
+    def redo(self):
+        self.text_edit.redo()
+
+file_manager.py
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
+
+class FileManager:
+    def __init__(self, editor_widget):
+        self.editor_widget = editor_widget
+        self.current_file = None
+
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            None, "Open File", "", "Markdown Files (*.md);;All Files (*.*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.editor_widget.set_content(content)
+                self.current_file = file_path
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to open file: {e}")
+
+    def save_file(self):
+        if self.current_file:
+            try:
+                with open(self.current_file, "w", encoding="utf-8") as f:
+                    f.write(self.editor_widget.get_content())
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
+        else:
+            self.save_file_as()
+
+    def save_file_as(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Save File", "", "Markdown Files (*.md);;All Files (*.*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(self.editor_widget.get_content())
+                self.current_file = file_path
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
+
+    def close_file(self):
+        self.editor_widget.set_content("")
+        self.current_file = None
+
+viewer_widget.py
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QToolBar, QAction
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtCore import QUrl
+from markdown import markdown
+from mdx_math import MathExtension
+from PyQt5.QtGui import QFontDatabase, QFont
+import os
+
+
+class ViewerPage(QWebEnginePage):
+    """
+    Custom QWebEnginePage to handle link navigation.
+    We'll override acceptNavigationRequest to catch link clicks.
+    """
+    def __init__(self, parent=None, on_link_clicked=None):
+        super().__init__(parent)
+        self.on_link_clicked = on_link_clicked        
+        
+
+
+
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        # If it's a user click on a link, handle it
+        if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
+            if self.on_link_clicked:
+                self.on_link_clicked(url.toString())
+            return False  # We'll handle navigation manually
+        return True
+
+
+class ViewerWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.layout = QVBoxLayout(self)
+        self.setLayout(self.layout)
+
+        # Toolbar with Back button
+        self.toolbar = QToolBar(self)
+        self.layout.addWidget(self.toolbar)
+
+        self.back_action = QAction("Back", self)
+        self.back_action.triggered.connect(self.go_back)
+        self.back_action.setEnabled(False)
+        self.toolbar.addAction(self.back_action)
+
+        self.webview = QWebEngineView(self)
+        self.layout.addWidget(self.webview)
+
+        # Apply the Raleway font
+        specific_font = QFont("Raleway", 14)
+        self.webview.setFont(specific_font)
+
+        # Store current markdown and original HTML for "Back" functionality
+        self.current_markdown = ""
+        self.original_markdown = ""
+        self.page = ViewerPage(on_link_clicked=self.open_link)
+        self.webview.setPage(self.page)
+
+    def update_content(self, markdown_text):
+        self.current_markdown = markdown_text
+        self.original_markdown = markdown_text
+        self.back_action.setEnabled(False)
+
+        # Convert Markdown to HTML (with math)
+        html_content = markdown(
+            markdown_text,
+            extensions=[
+                'extra',
+                'codehilite',
+                MathExtension()
+            ]
+        )
+
+        # KaTeX integration
+        katex_script = """
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: "$$", right: "$$", display: true},  // Block math
+                        {left: "\\[", right: "\\]", display: true},  // Alternative block math
+                        {left: "$", right: "$", display: false},  // Inline math
+                        {left: "\\(", right: "\\)", display: false}  // Alternative inline math
+                    ]
+                });
+            });
+        </script>
+        """
+
+
+        style = f"""
+        <style>
+            @font-face {{
+                font-family: 'Raleway';
+                src: url('file:///{os.path.abspath(os.path.join("assets", "fonts", "Raleway-VariableFont_wght.ttf"))}');
+            }}
+            body {{
+                font-family: 'Raleway', sans-serif;
+                font-size: 14px;
+                color: #222;
+                background-color: #FFFFEE;
+            }}
+        </style>
+        """
+
+        final_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        {katex_script}
+        {style}
+        </head>
+        <body>{html_content}</body>
+        </html>
+        """
+        
+        # Save the HTML to debug file
+        with open("debug.html", "w", encoding="utf-8") as f:
+            f.write(final_html)
+
+        # Load the HTML into the QWebEngineView
+        self.webview.setHtml(final_html, QUrl("about:blank"))
+
+    def open_link(self, url):
+        # Called when a link is clicked
+        print(f"Link clicked: {url}")
+        if url.startswith("http://") or url.startswith("https://"):
+            # Open in default browser
+            from PyQt5.QtGui import QDesktopServices
+            QDesktopServices.openUrl(QUrl(url))
+            self.back_action.setEnabled(True)
+        elif url.startswith("file://"):
+            # Local file - if markdown, load it
+            local_path = url[7:]
+            if local_path.endswith(".md"):
+                try:
+                    with open(local_path, "r", encoding="utf-8") as f:
+                        markdown_content = f.read()
+                    self.current_markdown = markdown_content
+                    self.back_action.setEnabled(True)
+                    self.update_content(markdown_content)
+                except Exception as e:
+                    print(f"Error loading local Markdown file: {e}")
+            else:
+                print(f"Unsupported file type: {local_path}")
+        else:
+            # Other links - just try loading them
+            self.webview.load(QUrl(url))
+            self.back_action.setEnabled(True)
+
+    def go_back(self):
+        # Restore the original markdown
+        if self.original_markdown:
+            self.update_content(self.original_markdown)
+            self.back_action.setEnabled(False)
