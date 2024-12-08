@@ -10,10 +10,10 @@
             document.addEventListener("DOMContentLoaded", function() {
                 renderMathInElement(document.body, {
                     delimiters: [
-                        {left: "$$", right: "$$", display: true},  // Block math
-                        {left: "\[", right: "\]", display: true},  // Alternative block math
-                        {left: "$", right: "$", display: false},  // Inline math
-                        {left: "\(", right: "\)", display: false}  // Alternative inline math
+                        {left: "$$", right: "$$", display: true},
+                        {left: "\[", right: "\]", display: true},
+                        {left: "$", right: "$", display: false},
+                        {left: "\(", right: "\)", display: false}
                     ]
                 });
             });
@@ -21,13 +21,10 @@
         
         
         <style>
-            @font-face {
-                font-family: 'Raleway';
-                src: url('file:////home/jamie/Programming/venv_Python/jmd_editor/assets/fonts/Raleway-VariableFont_wght.ttf');
-            }
             body {
                 font-family: 'Raleway', sans-serif;
-                font-size: 14px;
+                font-size: 18px;
+                font-weight: 600;
                 color: #222;
                 background-color: #FFFFEE;
             }

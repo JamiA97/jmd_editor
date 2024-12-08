@@ -8,7 +8,10 @@ import os
 class ViewerPage(QWebEnginePage):
     def __init__(self, parent=None, on_link_clicked=None):
         super().__init__(parent)
-        self.on_link_clicked = on_link_clicked        
+        self.on_link_clicked = on_link_clicked
+
+    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+        print(f"JS Console: {message} (source: {source_id}, line: {line_number})")        
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
@@ -26,6 +29,7 @@ class ViewerWidget(QWidget):
         self.webview = QWebEngineView(self)
         self.layout.addWidget(self.webview)
 
+
         self.current_markdown = ""
         self.original_markdown = ""
         self.page = ViewerPage(on_link_clicked=self.open_link)
@@ -35,6 +39,7 @@ class ViewerWidget(QWidget):
         self.current_markdown = markdown_text
         self.original_markdown = markdown_text
 
+        # Convert Markdown to HTML
         html_content = markdown(
             markdown_text,
             extensions=[
@@ -42,6 +47,11 @@ class ViewerWidget(QWidget):
                 'codehilite',
                 MathExtension()
             ]
+        )
+
+        # Ensure all image paths are prefixed with file://
+        html_content = html_content.replace(
+            'src="/home/', 'src="file:///home/'
         )
 
         katex_script = """
@@ -62,15 +72,15 @@ class ViewerWidget(QWidget):
         </script>
         """
 
-        style = f"""
+        style = """
         <style>
-            body {{
+            body {
                 font-family: 'Raleway', sans-serif;
                 font-size: 18px;
                 font-weight: 600;
                 color: #222;
                 background-color: #FFFFEE;
-            }}
+            }
         </style>
         """
 
@@ -85,7 +95,13 @@ class ViewerWidget(QWidget):
         </html>
         """
 
-        self.webview.setHtml(final_html, QUrl("about:blank"))
+        with open("debug.html", "w", encoding="utf-8") as file:
+            file.write(final_html)
+
+        print(f"Generated HTML:\n{final_html}")
+
+        #self.webview.setHtml(final_html, QUrl("about:blank"))
+        self.webview.setHtml(final_html, QUrl.fromLocalFile("/home/jamie/Programming/venv_Python/jmd_editor/"))
 
     def open_link(self, url):
         print(f"Link clicked: {url}")
