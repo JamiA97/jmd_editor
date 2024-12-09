@@ -41,6 +41,9 @@ class MarkdownEditorApp(QMainWindow):
         self.file_viewer = FileViewerWidget()
         self.file_viewer.file_selected.connect(self.open_file_from_viewer)
 
+        self.file_viewer.folder_changed.connect(self.set_working_folder)
+
+
         self.editor = EditorWidget(self.update_viewer)
         self.viewer = ViewerWidget()
 
@@ -145,6 +148,14 @@ $$
             self.working_folder = folder_path
             self.file_viewer.set_folder(folder_path)
             QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
+
+    def set_working_folder(self, folder_path):
+        """
+        Updates the working folder and displays a message.
+        """
+        self.working_folder = folder_path
+        QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
+
 
     def open_file_from_viewer(self, file_path):
         """
