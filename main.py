@@ -61,7 +61,7 @@ class MarkdownEditorApp(QMainWindow):
         self.splitter.addWidget(self.viewer)
 
         # Set initial sizes for the panes
-        self.splitter.setSizes([200, 500, 300])
+        self.splitter.setSizes([200, 400, 400])
 
         # File manager
         self.file_manager = FileManager(self.editor)
@@ -79,9 +79,9 @@ This is **bold text** and *italic text*.
 Math: $E = mc^2$
 
 Block math:
-$$
+$
 \\frac{{d}}{{dx}}f(x)=f'(x)
-$$
+$
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 

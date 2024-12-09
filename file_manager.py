@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 
 
+
 class FileManager:
     def __init__(self, editor_widget):
         self.editor_widget = editor_widget
@@ -16,6 +17,7 @@ class FileManager:
                     content = f.read()
                 self.editor_widget.set_content(content)
                 self.current_file = file_path
+                
             except Exception as e:
                 QMessageBox.critical(None, "Error", f"Unable to open file: {e}")
 
@@ -24,10 +26,12 @@ class FileManager:
             try:
                 with open(self.current_file, "w", encoding="utf-8") as f:
                     f.write(self.editor_widget.get_content())
+                    
             except Exception as e:
                 QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
         else:
             self.save_file_as()
+            
 
     def save_file_as(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -38,6 +42,7 @@ class FileManager:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(self.editor_widget.get_content())
                 self.current_file = file_path
+                
             except Exception as e:
                 QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
 

@@ -37,18 +37,39 @@ class ViewerWidget(QWidget):
         self.history_back = []
         self.history_forward = []
 
+    # def intercept_link_navigation(self, url, nav_type, is_main_frame):
+    #     """
+    #     Intercept link clicks in the preview window to handle .md files.
+    #     """
+    #     local_path = url.toLocalFile()
+    #     print(f"[DEBUG] Intercepted navigation to: {local_path}")
+    #     if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
+    #         if local_path.endswith(".md"):
+    #             self.navigate_to_file(local_path)
+    #             print(f"[DEBUG] Navigating to Markdown file: {local_path}")
+    #             return False  # Prevent default navigation
+    #     return True
+    
     def intercept_link_navigation(self, url, nav_type, is_main_frame):
         """
-        Intercept link clicks in the preview window to handle .md files.
+        Intercept link clicks in the preview window to handle .md files and open external links in the default browser.
         """
         local_path = url.toLocalFile()
-        print(f"[DEBUG] Intercepted navigation to: {local_path}")
+        print(f"[DEBUG] Intercepted navigation to: {url.toString()}")
         if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
-            if local_path.endswith(".md"):
+            if url.toString().startswith(("http://", "https://")):
+                # Open external links in the system's default web browser
+                from PyQt5.QtGui import QDesktopServices
+                QDesktopServices.openUrl(url)
+                print(f"[DEBUG] Opened external link in browser: {url.toString()}")
+                return False  # Prevent default navigation
+            elif local_path.endswith(".md"):
+                # Handle Markdown file navigation
                 self.navigate_to_file(local_path)
                 print(f"[DEBUG] Navigating to Markdown file: {local_path}")
                 return False  # Prevent default navigation
         return True
+
 
     def navigate_to_file(self, file_path):
         """

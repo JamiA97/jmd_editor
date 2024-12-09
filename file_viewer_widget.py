@@ -79,12 +79,28 @@ class FileViewerWidget(QWidget):
             file_path = os.path.join(self.current_folder, text)
             self.file_selected.emit(file_path)
 
+    # def show_context_menu(self, position):
+    #     """
+    #     Shows a context menu for additional folder actions.
+    #     """
+    #     menu = QMenu(self)
+    #     set_working_folder_action = menu.addAction("Set as Working Folder")
+    #     action = menu.exec_(self.file_list.mapToGlobal(position))
+
+    #     if action == set_working_folder_action:
+    #         selected_item = self.file_list.currentItem()
+    #         if selected_item and selected_item.text().startswith("[Folder] "):
+    #             folder_name = selected_item.text()[len("[Folder] "):]
+    #             selected_folder = os.path.join(self.current_folder, folder_name)
+    #             self.folder_changed.emit(selected_folder)
+
     def show_context_menu(self, position):
         """
         Shows a context menu for additional folder actions.
         """
         menu = QMenu(self)
         set_working_folder_action = menu.addAction("Set as Working Folder")
+        refresh_action = menu.addAction("Refresh")  # Add Refresh option
         action = menu.exec_(self.file_list.mapToGlobal(position))
 
         if action == set_working_folder_action:
@@ -93,3 +109,15 @@ class FileViewerWidget(QWidget):
                 folder_name = selected_item.text()[len("[Folder] "):]
                 selected_folder = os.path.join(self.current_folder, folder_name)
                 self.folder_changed.emit(selected_folder)
+        elif action == refresh_action:
+            self.refresh()  # Call the refresh method
+
+
+
+    def refresh(self):
+        """
+        Refresh the file viewer to reflect the current folder's contents.
+        """
+        if self.current_folder:
+            self.populate_file_list()
+
