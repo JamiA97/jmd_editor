@@ -1,26 +1,14 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineSettings
-from PyQt5.QtCore import QUrl
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QMenu
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtCore import QUrl, pyqtSignal
+from PyQt5.QtCore import Qt
 from markdown import markdown
 from mdx_math import MathExtension
 import os
 
-class ViewerPage(QWebEnginePage):
-    def __init__(self, parent=None, on_link_clicked=None):
-        super().__init__(parent)
-        self.on_link_clicked = on_link_clicked
-
-    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
-        print(f"JS Console: {message} (source: {source_id}, line: {line_number})")
-
-    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
-        if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
-            if self.on_link_clicked:
-                self.on_link_clicked(url.toString())
-            return False
-        return True
-
 class ViewerWidget(QWidget):
+    file_selected_for_editor = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.layout = QVBoxLayout(self)
@@ -29,23 +17,51 @@ class ViewerWidget(QWidget):
         self.webview = QWebEngineView(self)
         self.layout.addWidget(self.webview)
 
-        # Set attributes directly on QWebEngineSettings
-        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
-
         self.current_markdown = ""
-        self.original_markdown = ""
-        self.page = ViewerPage(on_link_clicked=self.open_link)
+        self.current_file_path = None  # Keep track of the current file being rendered
+
+        self.webview.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.webview.customContextMenuRequested.connect(self.show_context_menu)
+
+        self.page = QWebEnginePage(self)
+        self.page.acceptNavigationRequest = self.intercept_link_navigation
         self.webview.setPage(self.page)
+
+    def intercept_link_navigation(self, url, nav_type, is_main_frame):
+        """
+        Intercept link clicks in the preview window to handle .md files.
+        """
+        print(f"Intercepted URL: {url.toString()}")
+        local_path = url.toLocalFile()
+        print(f"Local path derived: {local_path}")
+
+        if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
+            if local_path.endswith(".md"):
+                print(f"Markdown file detected: {local_path}")
+                self.load_markdown_file(local_path)
+                return False  # Prevent default navigation
+            else:
+                print(f"Non-Markdown link clicked: {url.toString()}")
+        return True
+
+    def load_markdown_file(self, file_path):
+        """
+        Load and render a Markdown file in the preview window.
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            print(f"Loaded content from {file_path}")
+            self.current_file_path = file_path
+            self.update_content(content, os.path.dirname(file_path))
+        except Exception as e:
+            print(f"Error loading Markdown file: {e}")
 
     def update_content(self, markdown_text, base_url):
         """
-        Converts Markdown to HTML and displays it in the web view.
+        Convert Markdown to HTML and display it in the web view.
         """
         self.current_markdown = markdown_text
-        self.original_markdown = markdown_text
-
-        # Convert Markdown to HTML
         html_content = markdown(
             markdown_text,
             extensions=[
@@ -102,34 +118,18 @@ class ViewerWidget(QWidget):
         with open("debug_render.html", "w", encoding="utf-8") as file:
             file.write(final_html)
 
-        print(f"Generated HTML:\n{final_html}")
+        print(f"Generated HTML for preview:\n{final_html}")
 
         self.webview.setHtml(final_html, QUrl.fromLocalFile(base_url + '/'))
 
-    def open_link(self, url):
+    def show_context_menu(self, position):
         """
-        Handles clicks on links in the preview. Renders markdown files as Markdown, handles other files normally.
+        Show a context menu in the preview window for additional actions.
         """
-        print(f"Link clicked: {url}")
-        if url.startswith("http://") or url.startswith("https://"):
-            # Open external links in the system's default browser
-            from PyQt5.QtGui import QDesktopServices
-            QDesktopServices.openUrl(QUrl(url))
-        elif url.startswith("file://"):
-            # Handle local files
-            local_path = url[7:]  # Strip 'file://' prefix
-            if local_path.endswith(".md"):
-                # If it's a Markdown file, render it
-                try:
-                    with open(local_path, "r", encoding="utf-8") as f:
-                        markdown_content = f.read()
-                    # Update the content and set the correct base URL
-                    self.update_content(markdown_content, os.path.dirname(local_path))
-                except Exception as e:
-                    print(f"Error loading Markdown file: {e}")
-            else:
-                # For non-Markdown files, attempt to load in the webview
-                self.webview.load(QUrl(url))
-        else:
-            # Handle other URLs (e.g., relative paths)
-            self.webview.load(QUrl(url))
+        menu = QMenu(self)
+        open_in_editor_action = menu.addAction("Open in Editor")
+        action = menu.exec_(self.webview.mapToGlobal(position))
+
+        if action == open_in_editor_action and self.current_file_path:
+            print(f"Opening {self.current_file_path} in the editor.")
+            self.file_selected_for_editor.emit(self.current_file_path)

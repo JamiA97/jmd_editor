@@ -1,9 +1,9 @@
 import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
-                             QMessageBox, QSplitter, QWidget, QVBoxLayout)
+                             QMessageBox, QSplitter, QWidget, QVBoxLayout, QShortcut)
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFontDatabase, QFont
+from PyQt5.QtGui import QFontDatabase, QFont, QKeySequence
 from editor_widget import EditorWidget
 from viewer_widget import ViewerWidget
 from file_manager import FileManager
@@ -25,7 +25,7 @@ class MarkdownEditorApp(QMainWindow):
 
         # Set the default font for the application
         raleway_font = QFont("Raleway", 12)
-        raleway_font.setWeight(QFont.Bold)  # Change the weight to Medium, Bold, etc.
+        raleway_font.setWeight(QFont.Bold)  # Set the font weight
         QApplication.setFont(raleway_font)
 
         # Initialize central widget and layout
@@ -41,12 +41,11 @@ class MarkdownEditorApp(QMainWindow):
         # Initialize file viewer, editor, and viewer
         self.file_viewer = FileViewerWidget()
         self.file_viewer.file_selected.connect(self.open_file_from_viewer)
-
         self.file_viewer.folder_changed.connect(self.set_working_folder)
-
 
         self.editor = EditorWidget(self.update_viewer)
         self.viewer = ViewerWidget()
+        self.viewer.file_selected_for_editor.connect(self.open_file_in_editor)
 
         # Add widgets to the splitter
         self.splitter.addWidget(self.file_viewer)
@@ -82,6 +81,10 @@ $$
 """
         self.editor.set_content(example_markdown)
         self.update_viewer()  # Initial render
+
+        # Add shortcut for opening the current file in the editor
+        shortcut_open_in_editor = QShortcut(QKeySequence("Ctrl+E"), self)
+        shortcut_open_in_editor.activated.connect(self.open_current_viewed_file_in_editor)
 
     def setup_menu(self):
         menu_bar = QMenuBar(self)
@@ -141,9 +144,6 @@ $$
             self.toggle_editor()
 
     def select_folder(self):
-        """
-        Opens a dialog to select a folder for the file viewer and sets it as the working folder.
-        """
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "")
         if folder_path:
             self.working_folder = folder_path
@@ -151,17 +151,10 @@ $$
             QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
 
     def set_working_folder(self, folder_path):
-        """
-        Updates the working folder and displays a message.
-        """
         self.working_folder = folder_path
         QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
 
-
     def open_file_from_viewer(self, file_path):
-        """
-        Opens a file from the file viewer in the editor.
-        """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -169,6 +162,20 @@ $$
             self.update_viewer()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
+
+    def open_file_in_editor(self, file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.editor.set_content(content)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
+
+    def open_current_viewed_file_in_editor(self):
+        if hasattr(self.viewer, 'current_file_path') and self.viewer.current_file_path:
+            self.open_file_in_editor(self.viewer.current_file_path)
+        else:
+            QMessageBox.warning(self, "No File", "No file is currently loaded in the preview.")
 
     def update_viewer(self):
         content = self.editor.get_content()
