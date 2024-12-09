@@ -25,6 +25,7 @@ class MarkdownEditorApp(QMainWindow):
 
         # Set the default font for the application
         raleway_font = QFont("Raleway", 12)
+        raleway_font.setWeight(QFont.Bold)  # Change the weight to Medium, Bold, etc.
         QApplication.setFont(raleway_font)
 
         # Initialize central widget and layout
