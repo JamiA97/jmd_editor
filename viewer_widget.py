@@ -6,11 +6,13 @@ from markdown import markdown
 from mdx_math import MathExtension
 import os
 
+
 class ViewerWidget(QWidget):
     file_selected_for_editor = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, base_path):
         super().__init__()
+        self.base_path = base_path
         self.layout = QVBoxLayout(self)
         self.setLayout(self.layout)
 
@@ -40,9 +42,11 @@ class ViewerWidget(QWidget):
         Intercept link clicks in the preview window to handle .md files.
         """
         local_path = url.toLocalFile()
+        print(f"[DEBUG] Intercepted navigation to: {local_path}")
         if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
             if local_path.endswith(".md"):
                 self.navigate_to_file(local_path)
+                print(f"[DEBUG] Navigating to Markdown file: {local_path}")
                 return False  # Prevent default navigation
         return True
 
@@ -65,7 +69,6 @@ class ViewerWidget(QWidget):
 
         # Load the new file
         self.load_markdown_file(file_path)
-
 
     def load_markdown_file(self, file_path):
         """
@@ -94,11 +97,15 @@ class ViewerWidget(QWidget):
             ]
         )
 
-        katex_path = os.path.abspath("assets/katex")
+        katex_path = os.path.abspath(os.path.join(self.base_path, "assets", "katex"))
+        katex_css = QUrl.fromLocalFile(os.path.join(katex_path, "katex.min.css")).toString()
+        katex_js = QUrl.fromLocalFile(os.path.join(katex_path, "katex.min.js")).toString()
+        auto_render_js = QUrl.fromLocalFile(os.path.join(katex_path, "contrib", "auto-render.min.js")).toString()
+
         katex_script = f"""
-        <link rel="stylesheet" href="file:///{katex_path}/katex.min.css">
-        <script defer src="file:///{katex_path}/katex.min.js"></script>
-        <script defer src="file:///{katex_path}/contrib/auto-render.min.js"></script>
+        <link rel="stylesheet" href="{katex_css}">
+        <script defer src="{katex_js}"></script>
+        <script defer src="{auto_render_js}"></script>
         <script>
             document.addEventListener("DOMContentLoaded", function() {{
                 renderMathInElement(document.body, {{
@@ -136,7 +143,10 @@ class ViewerWidget(QWidget):
         </html>
         """
 
-        self.webview.setHtml(final_html, QUrl.fromLocalFile(base_url + '/'))
+        # Convert base_url to a proper QUrl
+        base_qurl = QUrl.fromLocalFile(base_url + os.sep)
+        self.webview.setHtml(final_html, base_qurl)
+        print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
 
     def navigate_back(self):
         """
@@ -166,7 +176,6 @@ class ViewerWidget(QWidget):
         else:
             print("[DEBUG] No more history to go forward.")
 
-
     def show_context_menu(self, position):
         """
         Show a context menu in the preview window for additional actions.
@@ -181,11 +190,12 @@ class ViewerWidget(QWidget):
         forward_action.setEnabled(len(self.history_forward) > 0)
 
         action = menu.exec_(self.webview.mapToGlobal(position))
+        print(f"[DEBUG] Context menu action triggered: {action.text() if action else 'None'}")
 
         if action == open_in_editor_action and self.current_file_path:
+            print(f"[DEBUG] Emitting 'file_selected_for_editor' with: {self.current_file_path}")
             self.file_selected_for_editor.emit(self.current_file_path)
         elif action == back_action:
             self.navigate_back()
         elif action == forward_action:
             self.navigate_forward()
-

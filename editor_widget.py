@@ -2,8 +2,6 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QFontDatabase, QFont
 
-# This replaces the Tkinter ScrolledText editor.
-# The logic remains similar: when text changes, we schedule an update of the preview.
 
 class EditorWidget(QWidget):
     def __init__(self, update_viewer_callback):
@@ -27,8 +25,6 @@ class EditorWidget(QWidget):
                 font-family: 'Raleway', sans-serif;
             }
         """)
-
-
 
         # Debounce similar to Tkinter version
         self._debounce_delay = 300

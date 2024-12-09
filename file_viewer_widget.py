@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QListWidget, QMessageBox, QMen
 from PyQt5.QtCore import pyqtSignal, Qt
 import os
 
+
 class FileViewerWidget(QWidget):
     # Signal to notify when a file or folder is selected
     file_selected = pyqtSignal(str)
@@ -56,7 +57,7 @@ class FileViewerWidget(QWidget):
 
             # Add folders first (with a prefix or marker, if desired)
             self.file_list.addItems([f"[Folder] {folder}" for folder in sorted(folders)])
-            
+
             # Add markdown files
             self.file_list.addItems(sorted(files))
 

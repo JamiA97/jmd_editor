@@ -1,7 +1,9 @@
 import sys
 import os
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
-                             QMessageBox, QSplitter, QWidget, QVBoxLayout, QShortcut)
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
+    QMessageBox, QSplitter, QWidget, QVBoxLayout, QShortcut
+)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFontDatabase, QFont, QKeySequence
 from editor_widget import EditorWidget
@@ -16,8 +18,11 @@ class MarkdownEditorApp(QMainWindow):
         self.setWindowTitle("Simple Markdown Editor (PyQt5 Version)")
         self.resize(1000, 700)
 
+        # Determine the base path based on the script's location
+        self.base_path = os.path.dirname(os.path.abspath(__file__))
+
         # Load the custom font
-        font_path = os.path.join("assets", "Raleway", "Raleway-VariableFont_wght.ttf")
+        font_path = os.path.join(self.base_path, "assets", "Raleway", "Raleway-VariableFont_wght.ttf")
         if QFontDatabase.addApplicationFont(font_path) == -1:
             print("Error: Failed to load the Raleway font.")
         else:
@@ -44,8 +49,11 @@ class MarkdownEditorApp(QMainWindow):
         self.file_viewer.folder_changed.connect(self.set_working_folder)
 
         self.editor = EditorWidget(self.update_viewer)
-        self.viewer = ViewerWidget()
+        self.viewer = ViewerWidget(self.base_path)  # Pass base_path to ViewerWidget
+
+        # Connect ViewerWidget's signal to the slot in main application
         self.viewer.file_selected_for_editor.connect(self.open_file_in_editor)
+        print("[DEBUG] Connected ViewerWidget's 'file_selected_for_editor' signal to 'open_file_in_editor' slot.")
 
         # Add widgets to the splitter
         self.splitter.addWidget(self.file_viewer)
@@ -63,7 +71,7 @@ class MarkdownEditorApp(QMainWindow):
 
         # Set an initial example Markdown content
         self.working_folder = os.getcwd()
-        example_markdown = """
+        example_markdown = f"""
 # Example Markdown
 
 This is **bold text** and *italic text*.
@@ -72,12 +80,12 @@ Math: $E = mc^2$
 
 Block math:
 $$
-\\frac{d}{dx}f(x)=f'(x)
+\\frac{{d}}{{dx}}f(x)=f'(x)
 $$
 
 [Link to Markdown Guide](https://www.markdownguide.org)
 
-![image](images/tux.png)
+![image](file:///{os.path.join(self.base_path, "images", "tux.png")})
 """
         self.editor.set_content(example_markdown)
         self.update_viewer()  # Initial render
@@ -128,8 +136,10 @@ $$
     def toggle_editor(self):
         if self.show_editor_act.isChecked():
             self.splitter.addWidget(self.editor)
+            print("[DEBUG] Editor shown.")
         else:
             self.editor.setParent(None)
+            print("[DEBUG] Editor hidden.")
 
         if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
             self.show_preview_act.setChecked(True)
@@ -138,8 +148,10 @@ $$
     def toggle_preview(self):
         if self.show_preview_act.isChecked():
             self.splitter.addWidget(self.viewer)
+            print("[DEBUG] Preview shown.")
         else:
             self.viewer.setParent(None)
+            print("[DEBUG] Preview hidden.")
 
         if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
             self.show_editor_act.setChecked(True)
@@ -151,10 +163,12 @@ $$
             self.working_folder = folder_path
             self.file_viewer.set_folder(folder_path)
             QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
+            print(f"[DEBUG] Working folder set to: {folder_path}")
 
     def set_working_folder(self, folder_path):
         self.working_folder = folder_path
         QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
+        print(f"[DEBUG] Working folder changed to: {folder_path}")
 
     def open_file_from_viewer(self, file_path):
         try:
@@ -162,33 +176,43 @@ $$
                 content = f.read()
             self.editor.set_content(content)
             self.update_viewer()
+            print(f"[DEBUG] Opened file from viewer: {file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
+            print(f"[DEBUG] Error opening file from viewer: {e}")
 
     def open_file_in_editor(self, file_path):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             self.editor.set_content(content)
+            self.update_viewer()
+            print(f"[DEBUG] Opened file in editor: {file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
+            print(f"[DEBUG] Error opening file in editor: {e}")
 
     def open_current_viewed_file_in_editor(self):
         if hasattr(self.viewer, 'current_file_path') and self.viewer.current_file_path:
             self.open_file_in_editor(self.viewer.current_file_path)
+            print("[DEBUG] Opened current viewed file in editor via shortcut.")
         else:
             QMessageBox.warning(self, "No File", "No file is currently loaded in the preview.")
+            print("[DEBUG] No file loaded to open in editor via shortcut.")
 
     def update_viewer(self):
         content = self.editor.get_content()
         self.viewer.update_content(content, self.working_folder)
+        print("[DEBUG] Viewer updated with new content.")
 
     def setup_navigation_shortcuts(self):
         back_shortcut = QShortcut(QKeySequence("Ctrl+Left"), self)
         back_shortcut.activated.connect(self.viewer.navigate_back)
+        print("[DEBUG] Shortcut Ctrl+Left connected to navigate_back.")
 
         forward_shortcut = QShortcut(QKeySequence("Ctrl+Right"), self)
         forward_shortcut.activated.connect(self.viewer.navigate_forward)
+        print("[DEBUG] Shortcut Ctrl+Right connected to navigate_forward.")
 
 
 if __name__ == "__main__":

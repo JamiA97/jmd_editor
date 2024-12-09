@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 
+
 class FileManager:
     def __init__(self, editor_widget):
         self.editor_widget = editor_widget
