@@ -3,17 +3,17 @@
         <html>
         <head>
         
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
-        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+        <link rel="stylesheet" href="file:////home/jamie/Programming/venv_Python/jmd_editor/assets/katex/katex.min.css">
+        <script defer src="file:////home/jamie/Programming/venv_Python/jmd_editor/assets/katex/katex.min.js"></script>
+        <script defer src="file:////home/jamie/Programming/venv_Python/jmd_editor/assets/katex/contrib/auto-render.min.js"></script>
         <script>
             document.addEventListener("DOMContentLoaded", function() {
                 renderMathInElement(document.body, {
                     delimiters: [
                         {left: "$$", right: "$$", display: true},
-                        {left: "\[", right: "\]", display: true},
+                        {left: "\\[", right: "\\]", display: true},
                         {left: "$", right: "$", display: false},
-                        {left: "\(", right: "\)", display: false}
+                        {left: "\\(", right: "\\)", display: false}
                     ]
                 });
             });
@@ -35,10 +35,10 @@
 <p>This is <strong>bold text</strong> and <em>italic text</em>.</p>
 <p>Math: $E = mc^2$</p>
 <p>Block math:
-<script type="math/tex; mode=display">
+$
 \frac{d}{dx}f(x)=f'(x)
-</script>
-</p>
-<p><a href="https://www.markdownguide.org">Link to Markdown Guide</a></p></body>
+$</p>
+<p><a href="https://www.markdownguide.org">Link to Markdown Guide</a></p>
+<p><img alt="image" src="images/tux.png" /></p></body>
         </html>
         

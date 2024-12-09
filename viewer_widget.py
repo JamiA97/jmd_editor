@@ -4,6 +4,7 @@ from PyQt5.QtCore import QUrl
 from markdown import markdown
 from mdx_math import MathExtension
 import os
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 
 class ViewerPage(QWebEnginePage):
     def __init__(self, parent=None, on_link_clicked=None):
@@ -29,6 +30,10 @@ class ViewerWidget(QWidget):
         self.webview = QWebEngineView(self)
         self.layout.addWidget(self.webview)
 
+        # Set attributes directly on QWebEngineView
+        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+
 
         self.current_markdown = ""
         self.original_markdown = ""
@@ -48,27 +53,49 @@ class ViewerWidget(QWidget):
                 MathExtension()
             ]
         )
+        
 
         # Ensure all image paths are prefixed with file://
         html_content = html_content.replace(
             'src="/home/', 'src="file:///home/'
         )
 
-        katex_script = """
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
-        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
-        <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+        # Get the absolute path to the KaTeX assets
+        katex_path = os.path.abspath("assets/katex")
+
+        # katex_script = """
+        # <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+        # <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+        # <script defer src="https://cdn.jsdelivr.net/npm/katex/dist/contrib/auto-render.min.js"></script>
+        # <script>
+        #     document.addEventListener("DOMContentLoaded", function() {
+        #         renderMathInElement(document.body, {
+        #             delimiters: [
+        #                 {left: "$$", right: "$$", display: true},
+        #                 {left: "\\[", right: "\\]", display: true},
+        #                 {left: "$", right: "$", display: false},
+        #                 {left: "\\(", right: "\\)", display: false}
+        #             ]
+        #         });
+        #     });
+        # </script>
+        # """
+
+        katex_script = f"""
+        <link rel="stylesheet" href="file:///{katex_path}/katex.min.css">
+        <script defer src="file:///{katex_path}/katex.min.js"></script>
+        <script defer src="file:///{katex_path}/contrib/auto-render.min.js"></script>
         <script>
-            document.addEventListener("DOMContentLoaded", function() {
-                renderMathInElement(document.body, {
+            document.addEventListener("DOMContentLoaded", function() {{
+                renderMathInElement(document.body, {{
                     delimiters: [
-                        {left: "$$", right: "$$", display: true},
-                        {left: "\\[", right: "\\]", display: true},
-                        {left: "$", right: "$", display: false},
-                        {left: "\\(", right: "\\)", display: false}
+                        {{left: "$$", right: "$$", display: true}},
+                        {{left: "\\\\[", right: "\\\\]", display: true}},
+                        {{left: "$", right: "$", display: false}},
+                        {{left: "\\\\(", right: "\\\\)", display: false}}
                     ]
-                });
-            });
+                }});
+            }});
         </script>
         """
 
