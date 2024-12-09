@@ -86,6 +86,8 @@ $$
         shortcut_open_in_editor = QShortcut(QKeySequence("Ctrl+E"), self)
         shortcut_open_in_editor.activated.connect(self.open_current_viewed_file_in_editor)
 
+        self.setup_navigation_shortcuts()
+
     def setup_menu(self):
         menu_bar = QMenuBar(self)
         self.setMenuBar(menu_bar)
@@ -180,6 +182,13 @@ $$
     def update_viewer(self):
         content = self.editor.get_content()
         self.viewer.update_content(content, self.working_folder)
+
+    def setup_navigation_shortcuts(self):
+        back_shortcut = QShortcut(QKeySequence("Ctrl+Left"), self)
+        back_shortcut.activated.connect(self.viewer.navigate_back)
+
+        forward_shortcut = QShortcut(QKeySequence("Ctrl+Right"), self)
+        forward_shortcut.activated.connect(self.viewer.navigate_forward)
 
 
 if __name__ == "__main__":

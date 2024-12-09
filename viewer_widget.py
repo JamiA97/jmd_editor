@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QMenu
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QMenu, QAction
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from PyQt5.QtCore import QUrl, pyqtSignal
-from PyQt5.QtCore import Qt
+from PyQt5.QtWebEngineWidgets import QWebEngineSettings
+from PyQt5.QtCore import QUrl, Qt, pyqtSignal
 from markdown import markdown
 from mdx_math import MathExtension
 import os
@@ -27,22 +27,45 @@ class ViewerWidget(QWidget):
         self.page.acceptNavigationRequest = self.intercept_link_navigation
         self.webview.setPage(self.page)
 
+        # Set webview settings
+        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+
+        # History stacks
+        self.history_back = []
+        self.history_forward = []
+
     def intercept_link_navigation(self, url, nav_type, is_main_frame):
         """
         Intercept link clicks in the preview window to handle .md files.
         """
-        print(f"Intercepted URL: {url.toString()}")
         local_path = url.toLocalFile()
-        print(f"Local path derived: {local_path}")
-
         if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
             if local_path.endswith(".md"):
-                print(f"Markdown file detected: {local_path}")
-                self.load_markdown_file(local_path)
+                self.navigate_to_file(local_path)
                 return False  # Prevent default navigation
-            else:
-                print(f"Non-Markdown link clicked: {url.toString()}")
         return True
+
+    def navigate_to_file(self, file_path):
+        """
+        Navigate to a new file, adding it to the history.
+        """
+        if self.current_file_path:
+            # Add the current file to the back history only if it's not already the last entry
+            if not self.history_back or self.history_back[-1] != self.current_file_path:
+                self.history_back.append(self.current_file_path)
+                print(f"[DEBUG] Added to Back History: {self.current_file_path}")
+                print(f"[DEBUG] Current Back Stack: {self.history_back}")
+        else:
+            print(f"[DEBUG] First navigation to: {file_path}")
+
+        # Clear the forward history when navigating to a new file
+        self.history_forward.clear()
+        print(f"[DEBUG] Cleared Forward Stack: {self.history_forward}")
+
+        # Load the new file
+        self.load_markdown_file(file_path)
+
 
     def load_markdown_file(self, file_path):
         """
@@ -51,11 +74,11 @@ class ViewerWidget(QWidget):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            print(f"Loaded content from {file_path}")
             self.current_file_path = file_path
             self.update_content(content, os.path.dirname(file_path))
+            print(f"[DEBUG] Loaded and rendered: {file_path}")
         except Exception as e:
-            print(f"Error loading Markdown file: {e}")
+            print(f"[DEBUG] Error loading Markdown file: {e}")
 
     def update_content(self, markdown_text, base_url):
         """
@@ -71,7 +94,6 @@ class ViewerWidget(QWidget):
             ]
         )
 
-        # KaTeX setup
         katex_path = os.path.abspath("assets/katex")
         katex_script = f"""
         <link rel="stylesheet" href="file:///{katex_path}/katex.min.css">
@@ -114,22 +136,56 @@ class ViewerWidget(QWidget):
         </html>
         """
 
-        # Debugging: Write final HTML to a file
-        with open("debug_render.html", "w", encoding="utf-8") as file:
-            file.write(final_html)
-
-        print(f"Generated HTML for preview:\n{final_html}")
-
         self.webview.setHtml(final_html, QUrl.fromLocalFile(base_url + '/'))
+
+    def navigate_back(self):
+        """
+        Navigate to the previous file in history.
+        """
+        if self.history_back:
+            last_file = self.history_back.pop()
+            self.history_forward.append(self.current_file_path)
+            print(f"[DEBUG] Popped from Back History: {last_file}")
+            print(f"[DEBUG] Added to Forward Stack: {self.current_file_path}")
+            self.load_markdown_file(last_file)
+            print(f"[DEBUG] Navigated Back to: {last_file}")
+        else:
+            print("[DEBUG] No more history to go back.")
+
+    def navigate_forward(self):
+        """
+        Navigate to the next file in history.
+        """
+        if self.history_forward:
+            next_file = self.history_forward.pop()
+            self.history_back.append(self.current_file_path)
+            print(f"[DEBUG] Popped from Forward History: {next_file}")
+            print(f"[DEBUG] Added to Back Stack: {self.current_file_path}")
+            self.load_markdown_file(next_file)
+            print(f"[DEBUG] Navigated Forward to: {next_file}")
+        else:
+            print("[DEBUG] No more history to go forward.")
+
 
     def show_context_menu(self, position):
         """
         Show a context menu in the preview window for additional actions.
         """
         menu = QMenu(self)
+
         open_in_editor_action = menu.addAction("Open in Editor")
+        back_action = menu.addAction("Back")
+        forward_action = menu.addAction("Forward")
+
+        back_action.setEnabled(len(self.history_back) > 0)
+        forward_action.setEnabled(len(self.history_forward) > 0)
+
         action = menu.exec_(self.webview.mapToGlobal(position))
 
         if action == open_in_editor_action and self.current_file_path:
-            print(f"Opening {self.current_file_path} in the editor.")
             self.file_selected_for_editor.emit(self.current_file_path)
+        elif action == back_action:
+            self.navigate_back()
+        elif action == forward_action:
+            self.navigate_forward()
+
