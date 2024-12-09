@@ -59,6 +59,7 @@ class MarkdownEditorApp(QMainWindow):
         self.setup_menu()
 
         # Set an initial example Markdown content
+        self.working_folder = os.getcwd()
         example_markdown = """
 # Example Markdown
 
@@ -67,11 +68,13 @@ This is **bold text** and *italic text*.
 Math: $E = mc^2$
 
 Block math:
-$
+$$
 \\frac{d}{dx}f(x)=f'(x)
-$
+$$
 
 [Link to Markdown Guide](https://www.markdownguide.org)
+
+![image](images/tux.png)
 """
         self.editor.set_content(example_markdown)
         self.update_viewer()  # Initial render
@@ -135,11 +138,13 @@ $
 
     def select_folder(self):
         """
-        Opens a dialog to select a folder for the file viewer.
+        Opens a dialog to select a folder for the file viewer and sets it as the working folder.
         """
         folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "")
         if folder_path:
+            self.working_folder = folder_path
             self.file_viewer.set_folder(folder_path)
+            QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
 
     def open_file_from_viewer(self, file_path):
         """
@@ -155,7 +160,7 @@ $
 
     def update_viewer(self):
         content = self.editor.get_content()
-        self.viewer.update_content(content)
+        self.viewer.update_content(content, self.working_folder)
 
 
 if __name__ == "__main__":
