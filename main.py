@@ -111,6 +111,9 @@ $
         select_folder_act = QAction("Select Folder", self, triggered=self.select_folder)
         exit_act = QAction("Exit", self, triggered=self.close)
 
+        new_file_act = QAction("New File", self, shortcut="Ctrl+N", triggered=self.file_manager.create_new_file)
+        file_menu.addAction(new_file_act)
+
         file_menu.addAction(open_act)
         file_menu.addAction(save_act)
         file_menu.addAction(save_as_act)

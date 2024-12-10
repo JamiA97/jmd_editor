@@ -49,3 +49,21 @@ class FileManager:
     def close_file(self):
         self.editor_widget.set_content("")
         self.current_file = None
+
+    def create_new_file(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Create New File", "", "Markdown Files (*.md);;All Files (*.*)"
+        )
+        if file_path:
+            try:
+                # Create an empty file
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write("")  # Start with an empty file
+                
+                self.current_file = file_path
+                self.editor_widget.set_content("")  # Clear the editor for a new file
+                
+                QMessageBox.information(None, "File Created", f"New file created: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to create file: {e}")
+

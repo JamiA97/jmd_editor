@@ -1,318 +1,12 @@
-main.py
 
-import sys
-import os
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
-                             QMessageBox, QSplitter, QWidget, QVBoxLayout)
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFontDatabase, QFont
-from editor_widget import EditorWidget
-from viewer_widget import ViewerWidget
-from file_manager import FileManager
-from file_viewer_widget import FileViewerWidget
+##################################################
+# editor_widget.py
 
-
-class MarkdownEditorApp(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Simple Markdown Editor (PyQt5 Version)")
-        self.resize(1000, 700)
-
-        # Load the custom font
-        font_path = os.path.join("assets", "Raleway", "Raleway-VariableFont_wght.ttf")
-        if QFontDatabase.addApplicationFont(font_path) == -1:
-            print("Error: Failed to load the Raleway font.")
-        else:
-            print("Raleway font loaded successfully.")
-
-        # Set the default font for the application
-        raleway_font = QFont("Raleway", 12)
-        raleway_font.setWeight(QFont.Bold)  # Change the weight to Medium, Bold, etc.
-        QApplication.setFont(raleway_font)
-
-        # Initialize central widget and layout
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        # Create a QSplitter for the panes
-        self.splitter = QSplitter(Qt.Horizontal, self)
-        layout.addWidget(self.splitter)
-
-        # Initialize file viewer, editor, and viewer
-        self.file_viewer = FileViewerWidget()
-        self.file_viewer.file_selected.connect(self.open_file_from_viewer)
-
-        self.file_viewer.folder_changed.connect(self.set_working_folder)
-
-
-        self.editor = EditorWidget(self.update_viewer)
-        self.viewer = ViewerWidget()
-
-        # Add widgets to the splitter
-        self.splitter.addWidget(self.file_viewer)
-        self.splitter.addWidget(self.editor)
-        self.splitter.addWidget(self.viewer)
-
-        # Set initial sizes for the panes
-        self.splitter.setSizes([200, 500, 300])
-
-        # File manager
-        self.file_manager = FileManager(self.editor)
-
-        # Set up menu
-        self.setup_menu()
-
-        # Set an initial example Markdown content
-        self.working_folder = os.getcwd()
-        example_markdown = """
-# Example Markdown
-
-This is **bold text** and *italic text*.
-
-Math: $E = mc^2$
-
-Block math:
-$$
-\\frac{d}{dx}f(x)=f'(x)
-$$
-
-[Link to Markdown Guide](https://www.markdownguide.org)
-
-![image](images/tux.png)
-"""
-        self.editor.set_content(example_markdown)
-        self.update_viewer()  # Initial render
-
-    def setup_menu(self):
-        menu_bar = QMenuBar(self)
-        self.setMenuBar(menu_bar)
-
-        file_menu = menu_bar.addMenu("File")
-        edit_menu = menu_bar.addMenu("Edit")
-        view_menu = menu_bar.addMenu("View")
-
-        # File menu actions
-        open_act = QAction("Open", self, shortcut="Ctrl+O", triggered=self.file_manager.open_file)
-        save_act = QAction("Save", self, shortcut="Ctrl+S", triggered=self.file_manager.save_file)
-        save_as_act = QAction("Save As", self, shortcut="Ctrl+Shift+S", triggered=self.file_manager.save_file_as)
-        select_folder_act = QAction("Select Folder", self, triggered=self.select_folder)
-        exit_act = QAction("Exit", self, triggered=self.close)
-
-        file_menu.addAction(open_act)
-        file_menu.addAction(save_act)
-        file_menu.addAction(save_as_act)
-        file_menu.addAction(select_folder_act)
-        file_menu.addSeparator()
-        file_menu.addAction(exit_act)
-
-        # Edit menu actions
-        undo_act = QAction("Undo", self, shortcut="Ctrl+Z", triggered=self.editor.undo)
-        redo_act = QAction("Redo", self, shortcut="Ctrl+Y", triggered=self.editor.redo)
-        edit_menu.addAction(undo_act)
-        edit_menu.addAction(redo_act)
-
-        # View menu actions
-        self.show_editor_act = QAction("Show Editor", self, checkable=True, checked=True)
-        self.show_editor_act.triggered.connect(self.toggle_editor)
-        view_menu.addAction(self.show_editor_act)
-
-        self.show_preview_act = QAction("Show Preview", self, checkable=True, checked=True)
-        self.show_preview_act.triggered.connect(self.toggle_preview)
-        view_menu.addAction(self.show_preview_act)
-
-    def toggle_editor(self):
-        if self.show_editor_act.isChecked():
-            self.splitter.addWidget(self.editor)
-        else:
-            self.editor.setParent(None)
-
-        if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
-            self.show_preview_act.setChecked(True)
-            self.toggle_preview()
-
-    def toggle_preview(self):
-        if self.show_preview_act.isChecked():
-            self.splitter.addWidget(self.viewer)
-        else:
-            self.viewer.setParent(None)
-
-        if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
-            self.show_editor_act.setChecked(True)
-            self.toggle_editor()
-
-    def select_folder(self):
-        """
-        Opens a dialog to select a folder for the file viewer and sets it as the working folder.
-        """
-        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "")
-        if folder_path:
-            self.working_folder = folder_path
-            self.file_viewer.set_folder(folder_path)
-            QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
-
-    def set_working_folder(self, folder_path):
-        """
-        Updates the working folder and displays a message.
-        """
-        self.working_folder = folder_path
-        QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
-
-
-    def open_file_from_viewer(self, file_path):
-        """
-        Opens a file from the file viewer in the editor.
-        """
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            self.editor.set_content(content)
-            self.update_viewer()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
-
-    def update_viewer(self):
-        content = self.editor.get_content()
-        self.viewer.update_content(content, self.working_folder)
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MarkdownEditorApp()
-    window.show()
-    sys.exit(app.exec_())
-
-
-viewer_widget.py
-
-from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from PyQt5.QtWebEngineWidgets import QWebEngineSettings
-from PyQt5.QtCore import QUrl
-from markdown import markdown
-from mdx_math import MathExtension
-import os
-
-class ViewerWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.layout = QVBoxLayout(self)
-        self.setLayout(self.layout)
-
-        self.webview = QWebEngineView(self)
-        self.layout.addWidget(self.webview)
-
-        # Set attributes directly on QWebEngineSettings
-        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
-
-        self.current_markdown = ""
-        self.original_markdown = ""
-
-    def update_content(self, markdown_text, base_url):
-        """
-        Converts Markdown to HTML and displays it in the web view.
-        """
-        self.current_markdown = markdown_text
-        self.original_markdown = markdown_text
-
-        # Convert Markdown to HTML
-        html_content = markdown(
-            markdown_text,
-            extensions=[
-                'extra',
-                'codehilite',
-                MathExtension()
-            ]
-        )
-
-        # KaTeX setup
-        katex_path = os.path.abspath("assets/katex")
-        katex_script = f"""
-        <link rel="stylesheet" href="file:///{katex_path}/katex.min.css">
-        <script defer src="file:///{katex_path}/katex.min.js"></script>
-        <script defer src="file:///{katex_path}/contrib/auto-render.min.js"></script>
-        <script>
-            document.addEventListener("DOMContentLoaded", function() {{
-                renderMathInElement(document.body, {{
-                    delimiters: [
-                        {{left: "$$", right: "$$", display: true}},
-                        {{left: "\\\\[", right: "\\\\]", display: true}},
-                        {{left: "$", right: "$", display: false}},
-                        {{left: "\\\\(", right: "\\\\)", display: false}}
-                    ]
-                }});
-            }});
-        </script>
-        """
-
-        style = """
-        <style>
-            body {
-                font-family: 'Raleway', sans-serif;
-                font-size: 18px;
-                font-weight: 600;
-                color: #222;
-                background-color: #FFFFEE;
-            }
-        </style>
-        """
-
-        final_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        {katex_script}
-        {style}
-        </head>
-        <body>{html_content}</body>
-        </html>
-        """
-
-        # Debugging: Write final HTML to a file
-        with open("debug_render.html", "w", encoding="utf-8") as file:
-            file.write(final_html)
-
-        print(f"Generated HTML:\n{final_html}")
-
-        self.webview.setHtml(final_html, QUrl.fromLocalFile(base_url + '/'))
-
-    def open_link(self, url):
-        """
-        Handles clicks on links in the preview. Renders markdown files as Markdown, handles other files normally.
-        """
-        print(f"Link clicked: {url}")
-        if url.startswith("http://") or url.startswith("https://"):
-            # Open external links in the system's default browser
-            from PyQt5.QtGui import QDesktopServices
-            QDesktopServices.openUrl(QUrl(url))
-        elif url.startswith("file://"):
-            # Handle local files
-            local_path = url[7:]  # Strip 'file://' prefix
-            if local_path.endswith(".md"):
-                # If it's a Markdown file, render it
-                try:
-                    with open(local_path, "r", encoding="utf-8") as f:
-                        markdown_content = f.read()
-                    # Update the content and set the correct base URL
-                    self.update_content(markdown_content, os.path.dirname(local_path))
-                except Exception as e:
-                    print(f"Error loading Markdown file: {e}")
-            else:
-                # For non-Markdown files, attempt to load in the webview
-                self.webview.load(QUrl(url))
-        else:
-            # Handle other URLs (e.g., relative paths)
-            self.webview.load(QUrl(url))
-
-editor_widget.py
+##################################################
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit
 from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QFontDatabase, QFont
 
-# This replaces the Tkinter ScrolledText editor.
-# The logic remains similar: when text changes, we schedule an update of the preview.
 
 class EditorWidget(QWidget):
     def __init__(self, update_viewer_callback):
@@ -336,8 +30,6 @@ class EditorWidget(QWidget):
                 font-family: 'Raleway', sans-serif;
             }
         """)
-
-
 
         # Debounce similar to Tkinter version
         self._debounce_delay = 300
@@ -369,10 +61,74 @@ class EditorWidget(QWidget):
     def redo(self):
         self.text_edit.redo()
 
-file_viewer_widget.py
+
+
+##################################################
+# file_manager.py
+
+##################################################
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
+
+
+
+class FileManager:
+    def __init__(self, editor_widget):
+        self.editor_widget = editor_widget
+        self.current_file = None
+
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            None, "Open File", "", "Markdown Files (*.md);;All Files (*.*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.editor_widget.set_content(content)
+                self.current_file = file_path
+                
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to open file: {e}")
+
+    def save_file(self):
+        if self.current_file:
+            try:
+                with open(self.current_file, "w", encoding="utf-8") as f:
+                    f.write(self.editor_widget.get_content())
+                    
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
+        else:
+            self.save_file_as()
+            
+
+    def save_file_as(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Save File", "", "Markdown Files (*.md);;All Files (*.*)"
+        )
+        if file_path:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(self.editor_widget.get_content())
+                self.current_file = file_path
+                
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
+
+    def close_file(self):
+        self.editor_widget.set_content("")
+        self.current_file = None
+
+
+
+##################################################
+# file_viewer_widget.py
+
+##################################################
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QListWidget, QMessageBox, QMenu
 from PyQt5.QtCore import pyqtSignal, Qt
 import os
+
 
 class FileViewerWidget(QWidget):
     # Signal to notify when a file or folder is selected
@@ -428,7 +184,7 @@ class FileViewerWidget(QWidget):
 
             # Add folders first (with a prefix or marker, if desired)
             self.file_list.addItems([f"[Folder] {folder}" for folder in sorted(folders)])
-            
+
             # Add markdown files
             self.file_list.addItems(sorted(files))
 
@@ -450,12 +206,28 @@ class FileViewerWidget(QWidget):
             file_path = os.path.join(self.current_folder, text)
             self.file_selected.emit(file_path)
 
+    # def show_context_menu(self, position):
+    #     """
+    #     Shows a context menu for additional folder actions.
+    #     """
+    #     menu = QMenu(self)
+    #     set_working_folder_action = menu.addAction("Set as Working Folder")
+    #     action = menu.exec_(self.file_list.mapToGlobal(position))
+
+    #     if action == set_working_folder_action:
+    #         selected_item = self.file_list.currentItem()
+    #         if selected_item and selected_item.text().startswith("[Folder] "):
+    #             folder_name = selected_item.text()[len("[Folder] "):]
+    #             selected_folder = os.path.join(self.current_folder, folder_name)
+    #             self.folder_changed.emit(selected_folder)
+
     def show_context_menu(self, position):
         """
         Shows a context menu for additional folder actions.
         """
         menu = QMenu(self)
         set_working_folder_action = menu.addAction("Set as Working Folder")
+        refresh_action = menu.addAction("Refresh")  # Add Refresh option
         action = menu.exec_(self.file_list.mapToGlobal(position))
 
         if action == set_working_folder_action:
@@ -464,50 +236,475 @@ class FileViewerWidget(QWidget):
                 folder_name = selected_item.text()[len("[Folder] "):]
                 selected_folder = os.path.join(self.current_folder, folder_name)
                 self.folder_changed.emit(selected_folder)
+        elif action == refresh_action:
+            self.refresh()  # Call the refresh method
 
-file_manager.py
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
 
-class FileManager:
-    def __init__(self, editor_widget):
-        self.editor_widget = editor_widget
-        self.current_file = None
 
-    def open_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            None, "Open File", "", "Markdown Files (*.md);;All Files (*.*)"
-        )
-        if file_path:
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.editor_widget.set_content(content)
-                self.current_file = file_path
-            except Exception as e:
-                QMessageBox.critical(None, "Error", f"Unable to open file: {e}")
+    def refresh(self):
+        """
+        Refresh the file viewer to reflect the current folder's contents.
+        """
+        if self.current_folder:
+            self.populate_file_list()
 
-    def save_file(self):
-        if self.current_file:
-            try:
-                with open(self.current_file, "w", encoding="utf-8") as f:
-                    f.write(self.editor_widget.get_content())
-            except Exception as e:
-                QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
+
+
+
+##################################################
+# main.py
+
+##################################################
+import sys
+import os
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QMenuBar, QAction, QFileDialog,
+    QMessageBox, QSplitter, QWidget, QVBoxLayout, QShortcut
+)
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFontDatabase, QFont, QKeySequence
+from editor_widget import EditorWidget
+from viewer_widget import ViewerWidget
+from file_manager import FileManager
+from file_viewer_widget import FileViewerWidget
+
+
+class MarkdownEditorApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Simple Markdown Editor (PyQt5 Version)")
+        self.resize(1000, 700)
+
+        # Determine the base path based on the script's location
+        self.base_path = os.path.dirname(os.path.abspath(__file__))
+
+        # Load the custom font
+        font_path = os.path.join(self.base_path, "assets", "Raleway", "Raleway-VariableFont_wght.ttf")
+        if QFontDatabase.addApplicationFont(font_path) == -1:
+            print("Error: Failed to load the Raleway font.")
         else:
-            self.save_file_as()
+            print("Raleway font loaded successfully.")
 
-    def save_file_as(self):
-        file_path, _ = QFileDialog.getSaveFileName(
-            None, "Save File", "", "Markdown Files (*.md);;All Files (*.*)"
+        # Set the default font for the application
+        raleway_font = QFont("Raleway", 12)
+        raleway_font.setWeight(QFont.Bold)  # Set the font weight
+        QApplication.setFont(raleway_font)
+
+        # Initialize central widget and layout
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create a QSplitter for the panes
+        self.splitter = QSplitter(Qt.Horizontal, self)
+        layout.addWidget(self.splitter)
+
+        # Initialize file viewer, editor, and viewer
+        self.file_viewer = FileViewerWidget()
+        self.file_viewer.file_selected.connect(self.open_file_from_viewer)
+        self.file_viewer.folder_changed.connect(self.set_working_folder)
+
+        self.editor = EditorWidget(self.update_viewer)
+        self.viewer = ViewerWidget(self.base_path)  # Pass base_path to ViewerWidget
+
+        # Connect ViewerWidget's signal to the slot in main application
+        self.viewer.file_selected_for_editor.connect(self.open_file_in_editor)
+        print("[DEBUG] Connected ViewerWidget's 'file_selected_for_editor' signal to 'open_file_in_editor' slot.")
+
+        # Add widgets to the splitter
+        self.splitter.addWidget(self.file_viewer)
+        self.splitter.addWidget(self.editor)
+        self.splitter.addWidget(self.viewer)
+
+        # Set initial sizes for the panes
+        self.splitter.setSizes([200, 400, 400])
+
+        # File manager
+        self.file_manager = FileManager(self.editor)
+
+        # Set up menu
+        self.setup_menu()
+
+        # Set an initial example Markdown content
+        self.working_folder = os.getcwd()
+        example_markdown = f"""
+# Example Markdown
+
+This is **bold text** and *italic text*.
+
+Math: $E = mc^2$
+
+Block math:
+$
+\\frac{{d}}{{dx}}f(x)=f'(x)
+$
+
+[Link to Markdown Guide](https://www.markdownguide.org)
+
+![image](file:///{os.path.join(self.base_path, "images", "tux.png")})
+"""
+        self.editor.set_content(example_markdown)
+        self.update_viewer()  # Initial render
+
+        # Add shortcut for opening the current file in the editor
+        shortcut_open_in_editor = QShortcut(QKeySequence("Ctrl+E"), self)
+        shortcut_open_in_editor.activated.connect(self.open_current_viewed_file_in_editor)
+
+        self.setup_navigation_shortcuts()
+
+    def setup_menu(self):
+        menu_bar = QMenuBar(self)
+        self.setMenuBar(menu_bar)
+
+        file_menu = menu_bar.addMenu("File")
+        edit_menu = menu_bar.addMenu("Edit")
+        view_menu = menu_bar.addMenu("View")
+
+        # File menu actions
+        open_act = QAction("Open", self, shortcut="Ctrl+O", triggered=self.file_manager.open_file)
+        save_act = QAction("Save", self, shortcut="Ctrl+S", triggered=self.file_manager.save_file)
+        save_as_act = QAction("Save As", self, shortcut="Ctrl+Shift+S", triggered=self.file_manager.save_file_as)
+        select_folder_act = QAction("Select Folder", self, triggered=self.select_folder)
+        exit_act = QAction("Exit", self, triggered=self.close)
+
+        file_menu.addAction(open_act)
+        file_menu.addAction(save_act)
+        file_menu.addAction(save_as_act)
+        file_menu.addAction(select_folder_act)
+        file_menu.addSeparator()
+        file_menu.addAction(exit_act)
+
+        # Edit menu actions
+        undo_act = QAction("Undo", self, shortcut="Ctrl+Z", triggered=self.editor.undo)
+        redo_act = QAction("Redo", self, shortcut="Ctrl+Y", triggered=self.editor.redo)
+        edit_menu.addAction(undo_act)
+        edit_menu.addAction(redo_act)
+
+        # View menu actions
+        self.show_editor_act = QAction("Show Editor", self, checkable=True, checked=True)
+        self.show_editor_act.triggered.connect(self.toggle_editor)
+        view_menu.addAction(self.show_editor_act)
+
+        self.show_preview_act = QAction("Show Preview", self, checkable=True, checked=True)
+        self.show_preview_act.triggered.connect(self.toggle_preview)
+        view_menu.addAction(self.show_preview_act)
+
+    def toggle_editor(self):
+        if self.show_editor_act.isChecked():
+            self.splitter.addWidget(self.editor)
+            print("[DEBUG] Editor shown.")
+        else:
+            self.editor.setParent(None)
+            print("[DEBUG] Editor hidden.")
+
+        if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
+            self.show_preview_act.setChecked(True)
+            self.toggle_preview()
+
+    def toggle_preview(self):
+        if self.show_preview_act.isChecked():
+            self.splitter.addWidget(self.viewer)
+            print("[DEBUG] Preview shown.")
+        else:
+            self.viewer.setParent(None)
+            print("[DEBUG] Preview hidden.")
+
+        if not self.show_editor_act.isChecked() and not self.show_preview_act.isChecked():
+            self.show_editor_act.setChecked(True)
+            self.toggle_editor()
+
+    def select_folder(self):
+        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "")
+        if folder_path:
+            self.working_folder = folder_path
+            self.file_viewer.set_folder(folder_path)
+            QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
+            print(f"[DEBUG] Working folder set to: {folder_path}")
+
+    def set_working_folder(self, folder_path):
+        self.working_folder = folder_path
+        QMessageBox.information(self, "Working Folder Set", f"Working folder set to: {folder_path}")
+        print(f"[DEBUG] Working folder changed to: {folder_path}")
+
+    def open_file_from_viewer(self, file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.editor.set_content(content)
+            self.update_viewer()
+            print(f"[DEBUG] Opened file from viewer: {file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
+            print(f"[DEBUG] Error opening file from viewer: {e}")
+
+    def open_file_in_editor(self, file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.editor.set_content(content)
+            self.update_viewer()
+            print(f"[DEBUG] Opened file in editor: {file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Unable to open file: {e}")
+            print(f"[DEBUG] Error opening file in editor: {e}")
+
+    def open_current_viewed_file_in_editor(self):
+        if hasattr(self.viewer, 'current_file_path') and self.viewer.current_file_path:
+            self.open_file_in_editor(self.viewer.current_file_path)
+            print("[DEBUG] Opened current viewed file in editor via shortcut.")
+        else:
+            QMessageBox.warning(self, "No File", "No file is currently loaded in the preview.")
+            print("[DEBUG] No file loaded to open in editor via shortcut.")
+
+    def update_viewer(self):
+        content = self.editor.get_content()
+        self.viewer.update_content(content, self.working_folder)
+        print("[DEBUG] Viewer updated with new content.")
+
+    def setup_navigation_shortcuts(self):
+        back_shortcut = QShortcut(QKeySequence("Ctrl+Left"), self)
+        back_shortcut.activated.connect(self.viewer.navigate_back)
+        print("[DEBUG] Shortcut Ctrl+Left connected to navigate_back.")
+
+        forward_shortcut = QShortcut(QKeySequence("Ctrl+Right"), self)
+        forward_shortcut.activated.connect(self.viewer.navigate_forward)
+        print("[DEBUG] Shortcut Ctrl+Right connected to navigate_forward.")
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MarkdownEditorApp()
+    window.show()
+    sys.exit(app.exec_())
+
+
+
+##################################################
+# viewer_widget.py
+
+##################################################
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QMenu, QAction
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtWebEngineWidgets import QWebEngineSettings
+from PyQt5.QtCore import QUrl, Qt, pyqtSignal
+from markdown import markdown
+from mdx_math import MathExtension
+import os
+
+
+class ViewerWidget(QWidget):
+    file_selected_for_editor = pyqtSignal(str)
+
+    def __init__(self, base_path):
+        super().__init__()
+        self.base_path = base_path
+        self.layout = QVBoxLayout(self)
+        self.setLayout(self.layout)
+
+        self.webview = QWebEngineView(self)
+        self.layout.addWidget(self.webview)
+
+        self.current_markdown = ""
+        self.current_file_path = None  # Keep track of the current file being rendered
+
+        self.webview.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.webview.customContextMenuRequested.connect(self.show_context_menu)
+
+        self.page = QWebEnginePage(self)
+        self.page.acceptNavigationRequest = self.intercept_link_navigation
+        self.webview.setPage(self.page)
+
+        # Set webview settings
+        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+        self.webview.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+
+        # History stacks
+        self.history_back = []
+        self.history_forward = []
+
+    # def intercept_link_navigation(self, url, nav_type, is_main_frame):
+    #     """
+    #     Intercept link clicks in the preview window to handle .md files.
+    #     """
+    #     local_path = url.toLocalFile()
+    #     print(f"[DEBUG] Intercepted navigation to: {local_path}")
+    #     if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
+    #         if local_path.endswith(".md"):
+    #             self.navigate_to_file(local_path)
+    #             print(f"[DEBUG] Navigating to Markdown file: {local_path}")
+    #             return False  # Prevent default navigation
+    #     return True
+    
+    def intercept_link_navigation(self, url, nav_type, is_main_frame):
+        """
+        Intercept link clicks in the preview window to handle .md files and open external links in the default browser.
+        """
+        local_path = url.toLocalFile()
+        print(f"[DEBUG] Intercepted navigation to: {url.toString()}")
+        if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
+            if url.toString().startswith(("http://", "https://")):
+                # Open external links in the system's default web browser
+                from PyQt5.QtGui import QDesktopServices
+                QDesktopServices.openUrl(url)
+                print(f"[DEBUG] Opened external link in browser: {url.toString()}")
+                return False  # Prevent default navigation
+            elif local_path.endswith(".md"):
+                # Handle Markdown file navigation
+                self.navigate_to_file(local_path)
+                print(f"[DEBUG] Navigating to Markdown file: {local_path}")
+                return False  # Prevent default navigation
+        return True
+
+
+    def navigate_to_file(self, file_path):
+        """
+        Navigate to a new file, adding it to the history.
+        """
+        if self.current_file_path:
+            # Add the current file to the back history only if it's not already the last entry
+            if not self.history_back or self.history_back[-1] != self.current_file_path:
+                self.history_back.append(self.current_file_path)
+                print(f"[DEBUG] Added to Back History: {self.current_file_path}")
+                print(f"[DEBUG] Current Back Stack: {self.history_back}")
+        else:
+            print(f"[DEBUG] First navigation to: {file_path}")
+
+        # Clear the forward history when navigating to a new file
+        self.history_forward.clear()
+        print(f"[DEBUG] Cleared Forward Stack: {self.history_forward}")
+
+        # Load the new file
+        self.load_markdown_file(file_path)
+
+    def load_markdown_file(self, file_path):
+        """
+        Load and render a Markdown file in the preview window.
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.current_file_path = file_path
+            self.update_content(content, os.path.dirname(file_path))
+            print(f"[DEBUG] Loaded and rendered: {file_path}")
+        except Exception as e:
+            print(f"[DEBUG] Error loading Markdown file: {e}")
+
+    def update_content(self, markdown_text, base_url):
+        """
+        Convert Markdown to HTML and display it in the web view.
+        """
+        self.current_markdown = markdown_text
+        html_content = markdown(
+            markdown_text,
+            extensions=[
+                'extra',
+                'codehilite',
+                MathExtension()
+            ]
         )
-        if file_path:
-            try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(self.editor_widget.get_content())
-                self.current_file = file_path
-            except Exception as e:
-                QMessageBox.critical(None, "Error", f"Unable to save file: {e}")
 
-    def close_file(self):
-        self.editor_widget.set_content("")
-        self.current_file = None
+        katex_path = os.path.abspath(os.path.join(self.base_path, "assets", "katex"))
+        katex_css = QUrl.fromLocalFile(os.path.join(katex_path, "katex.min.css")).toString()
+        katex_js = QUrl.fromLocalFile(os.path.join(katex_path, "katex.min.js")).toString()
+        auto_render_js = QUrl.fromLocalFile(os.path.join(katex_path, "contrib", "auto-render.min.js")).toString()
+
+        katex_script = f"""
+        <link rel="stylesheet" href="{katex_css}">
+        <script defer src="{katex_js}"></script>
+        <script defer src="{auto_render_js}"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {{
+                renderMathInElement(document.body, {{
+                    delimiters: [
+                        {{left: "$$", right: "$$", display: true}},
+                        {{left: "\\\\[", right: "\\\\]", display: true}},
+                        {{left: "$", right: "$", display: false}},
+                        {{left: "\\\\(", right: "\\\\)", display: false}}
+                    ]
+                }});
+            }});
+        </script>
+        """
+
+        style = """
+        <style>
+            body {
+                font-family: 'Raleway', sans-serif;
+                font-size: 18px;
+                font-weight: 600;
+                color: #222;
+                background-color: #FFFFEE;
+            }
+        </style>
+        """
+
+        final_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        {katex_script}
+        {style}
+        </head>
+        <body>{html_content}</body>
+        </html>
+        """
+
+        # Convert base_url to a proper QUrl
+        base_qurl = QUrl.fromLocalFile(base_url + os.sep)
+        self.webview.setHtml(final_html, base_qurl)
+        print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
+
+    def navigate_back(self):
+        """
+        Navigate to the previous file in history.
+        """
+        if self.history_back:
+            last_file = self.history_back.pop()
+            self.history_forward.append(self.current_file_path)
+            print(f"[DEBUG] Popped from Back History: {last_file}")
+            print(f"[DEBUG] Added to Forward Stack: {self.current_file_path}")
+            self.load_markdown_file(last_file)
+            print(f"[DEBUG] Navigated Back to: {last_file}")
+        else:
+            print("[DEBUG] No more history to go back.")
+
+    def navigate_forward(self):
+        """
+        Navigate to the next file in history.
+        """
+        if self.history_forward:
+            next_file = self.history_forward.pop()
+            self.history_back.append(self.current_file_path)
+            print(f"[DEBUG] Popped from Forward History: {next_file}")
+            print(f"[DEBUG] Added to Back Stack: {self.current_file_path}")
+            self.load_markdown_file(next_file)
+            print(f"[DEBUG] Navigated Forward to: {next_file}")
+        else:
+            print("[DEBUG] No more history to go forward.")
+
+    def show_context_menu(self, position):
+        """
+        Show a context menu in the preview window for additional actions.
+        """
+        menu = QMenu(self)
+
+        open_in_editor_action = menu.addAction("Open in Editor")
+        back_action = menu.addAction("Back")
+        forward_action = menu.addAction("Forward")
+
+        back_action.setEnabled(len(self.history_back) > 0)
+        forward_action.setEnabled(len(self.history_forward) > 0)
+
+        action = menu.exec_(self.webview.mapToGlobal(position))
+        print(f"[DEBUG] Context menu action triggered: {action.text() if action else 'None'}")
+
+        if action == open_in_editor_action and self.current_file_path:
+            print(f"[DEBUG] Emitting 'file_selected_for_editor' with: {self.current_file_path}")
+            self.file_selected_for_editor.emit(self.current_file_path)
+        elif action == back_action:
+            self.navigate_back()
+        elif action == forward_action:
+            self.navigate_forward()
+
+
