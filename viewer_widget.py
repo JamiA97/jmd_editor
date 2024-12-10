@@ -141,18 +141,44 @@ class ViewerWidget(QWidget):
         </script>
         """
 
-        style = """
+        # style = """
+        # <style>
+        #     body {
+        #         font-family: 'Raleway', sans-serif;
+        #         font-size: 18px;
+        #         font-weight: 600;
+        #         color: #222;
+        #         background-color: #FFFFEE;
+        #     }
+        # </style>
+        # """
+
+        style = f"""
         <style>
-            body {
+            @font-face {{
+                font-family: 'Raleway';
+                src: url('file://{os.path.join(self.base_path, "assets", "Raleway", "static", "Raleway-Regular.ttf")}');
+                font-weight: 400;
+            }}
+            @font-face {{
+                font-family: 'Raleway';
+                src: url('file://{os.path.join(self.base_path, "assets", "Raleway", "static", "Raleway-Bold.ttf")}');
+                font-weight: 700;
+            }}
+            body {{
                 font-family: 'Raleway', sans-serif;
                 font-size: 18px;
-                font-weight: 600;
+                font-weight: 400; /* Regular weight for normal text */
                 color: #222;
                 background-color: #FFFFEE;
-            }
+            }}
+            strong, b {{
+                font-family: 'Raleway', sans-serif;
+                font-weight: 700; /* Explicitly set bold weight */
+            }}
         </style>
         """
-
+        
         final_html = f"""
         <!DOCTYPE html>
         <html>
@@ -167,7 +193,8 @@ class ViewerWidget(QWidget):
         # Convert base_url to a proper QUrl
         base_qurl = QUrl.fromLocalFile(base_url + os.sep)
         self.webview.setHtml(final_html, base_qurl)
-        print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
+        #print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
+        print("[DEBUG] Generated HTML content:", html_content)
 
     def navigate_back(self):
         """

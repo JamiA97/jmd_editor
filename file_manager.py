@@ -1,4 +1,6 @@
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
+import datetime
+import uuid
 
 
 
@@ -50,20 +52,45 @@ class FileManager:
         self.editor_widget.set_content("")
         self.current_file = None
 
+
     def create_new_file(self):
-        file_path, _ = QFileDialog.getSaveFileName(
-            None, "Create New File", "", "Markdown Files (*.md);;All Files (*.*)"
+        # Generate timestamp and UUID for the file
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%d%m%y_%H%M%S")  # File-safe timestamp
+        nice_date = now.strftime("%d %B %Y")       # Human-readable date
+        nice_time = now.strftime("%H:%M:%S")       # Human-readable time
+        uuid_string = timestamp                    # Use the timestamp as UUID
+
+        # Template content
+        template_content = (
+            f"### Date: {nice_date}\n"
+            f"### Time: {nice_time}\n"
+            f"### UUID: {uuid_string}\n\n"
+            f"# Title:\n\n"
+            f"**Tags**\n\n"
+            f"### Body:\n"
         )
+
+        # Default filename
+        default_name = f"{timestamp}.md"
+
+        # Show a "Save As" dialog with the default name
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Create New Markdown File", default_name, "Markdown Files (*.md)"
+        )
+
         if file_path:
+            # Ensure the file has a .md extension
+            if not file_path.endswith(".md"):
+                file_path += ".md"
             try:
-                # Create an empty file
+                # Create the file with the template content
                 with open(file_path, "w", encoding="utf-8") as f:
-                    f.write("")  # Start with an empty file
+                    f.write(template_content)
                 
                 self.current_file = file_path
-                self.editor_widget.set_content("")  # Clear the editor for a new file
+                self.editor_widget.set_content(template_content)  # Load template into editor
                 
                 QMessageBox.information(None, "File Created", f"New file created: {file_path}")
             except Exception as e:
                 QMessageBox.critical(None, "Error", f"Unable to create file: {e}")
-
