@@ -10,6 +10,7 @@ from editor_widget import EditorWidget
 from viewer_widget import ViewerWidget
 from file_manager import FileManager
 from file_viewer_widget import FileViewerWidget
+from PyQt5.QtWidgets import QLineEdit
 
 
 class MarkdownEditorApp(QMainWindow):
@@ -93,6 +94,12 @@ $
         # Add shortcut for opening the current file in the editor
         shortcut_open_in_editor = QShortcut(QKeySequence("Ctrl+E"), self)
         shortcut_open_in_editor.activated.connect(self.open_current_viewed_file_in_editor)
+
+        # Add a search bar to the main window
+        self.search_bar = QLineEdit(self)
+        self.search_bar.setPlaceholderText("Search notes...")
+        self.search_bar.returnPressed.connect(self.perform_search)  # Trigger search on Enter
+        self.menuBar().setCornerWidget(self.search_bar, Qt.TopRightCorner)
 
         self.setup_navigation_shortcuts()
 
@@ -220,6 +227,11 @@ $
         forward_shortcut = QShortcut(QKeySequence("Ctrl+Right"), self)
         forward_shortcut.activated.connect(self.viewer.navigate_forward)
         print("[DEBUG] Shortcut Ctrl+Right connected to navigate_forward.")
+
+    def perform_search(self):
+        search_term = self.search_bar.text()
+        if search_term:
+            self.file_viewer.search_files(search_term)  # Call search in FileViewerWidget
 
 
 if __name__ == "__main__":

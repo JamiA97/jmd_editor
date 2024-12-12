@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QListWidget, QMessageBox, QMenu
 from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtWidgets import QListWidgetItem
 import os
 
 
@@ -120,4 +121,58 @@ class FileViewerWidget(QWidget):
         """
         if self.current_folder:
             self.populate_file_list()
+    
 
+    def search_files(self, search_term):
+        """
+        Search for files and content matching the search term.
+        """
+        if not self.current_folder or not os.path.isdir(self.current_folder):
+            QMessageBox.warning(self, "Invalid Workspace", "The current workspace folder is invalid or not set.")
+            return
+
+        results = []
+        for root, _, files in os.walk(self.current_folder):
+            for file in files:
+                if file.endswith(".md"):
+                    file_path = os.path.join(root, file)
+
+                    # Check filenames
+                    if search_term.lower() in file.lower():
+                        results.append((file_path, "Filename"))
+
+                    # Check content
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        if search_term.lower() in content.lower():
+                            results.append((file_path, "Content"))
+                    except Exception as e:
+                        QMessageBox.warning(self, "File Read Error", f"Error reading {file_path}: {e}")
+
+        self.display_search_results(results)
+
+    def display_search_results(self, results):
+        """
+        Display search results in the file viewer.
+        """
+        self.file_list.itemClicked.disconnect()  # Avoid duplicate connections
+        self.file_list.clear()
+        if not results:
+            QMessageBox.information(self, "No Results", "No matches found.")
+            return
+
+        for file_path, match_type in results:
+            display_text = f"{match_type}: {os.path.basename(file_path)}"
+            list_item = QListWidgetItem(display_text)
+            list_item.setData(Qt.UserRole, file_path)  # Store file path in item data
+            self.file_list.addItem(list_item)
+
+        self.file_list.itemClicked.connect(self.open_search_result)
+
+    def open_search_result(self, item):
+        """
+        Open the file clicked in the search results.
+        """
+        file_path = item.data(Qt.UserRole)
+        self.file_selected.emit(file_path)

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QMenu, QAction
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QMenu, QAction, QListWidgetItem
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtWebEngineWidgets import QWebEngineSettings
 from PyQt5.QtCore import QUrl, Qt, pyqtSignal
@@ -82,7 +82,7 @@ class ViewerWidget(QWidget):
 
     def intercept_link_navigation(self, url, nav_type, is_main_frame):
         local_path = url.toLocalFile()
-        print(f"[DEBUG] Intercepted navigation to: {url.toString()}")
+        #print(f"[DEBUG] Intercepted navigation to: {url.toString()}")
         if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
             if url.toString().startswith(("http://", "https://")):
                 from PyQt5.QtGui import QDesktopServices
@@ -109,19 +109,45 @@ class ViewerWidget(QWidget):
 
         self.load_markdown_file(file_path)
 
-    def load_markdown_file(self, file_path):
+    def load_markdown_file(self, file_path, search_term=None):
+        """
+        Load and render a Markdown file in the preview window, optionally highlighting search matches.
+        """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             self.current_file_path = file_path
-            self.update_content(content, os.path.dirname(file_path))
+            self.update_content(content, os.path.dirname(file_path), search_term)
             print(f"[DEBUG] Loaded and rendered: {file_path}")
         except Exception as e:
             print(f"[DEBUG] Error loading Markdown file: {e}")
 
-    def update_content(self, markdown_text, base_url):
-        self.current_markdown = markdown_text
-        md = markdown(
+    def highlight_matches(self, markdown_text, search_term):
+        """
+        Highlight search term matches in the Markdown content.
+        """
+        if not search_term:
+            return markdown_text
+
+        # Escape the search term for regex
+        escaped_term = re.escape(search_term)
+        highlighted_text = re.sub(
+            rf"({escaped_term})",
+            r'<span style="background-color: yellow; color: black;">\1</span>',
+            markdown_text,
+            flags=re.IGNORECASE
+        )
+        return highlighted_text
+
+    def update_content(self, markdown_text, base_url, search_term=None):
+        """
+        Convert Markdown to HTML and display it in the web view, highlighting search matches.
+        """
+        if search_term:
+            markdown_text = self.highlight_matches(markdown_text, search_term)
+
+        # Process Markdown with extensions
+        html_content = markdown(
             markdown_text,
             extensions=[
                 'extra',
@@ -131,6 +157,7 @@ class ViewerWidget(QWidget):
             ]
         )
 
+        # KaTeX setup
         katex_path = os.path.abspath(os.path.join(self.base_path, "assets", "katex"))
         katex_css = QUrl.fromLocalFile(os.path.join(katex_path, "katex.min.css")).toString()
         katex_js = QUrl.fromLocalFile(os.path.join(katex_path, "katex.min.js")).toString()
@@ -145,15 +172,16 @@ class ViewerWidget(QWidget):
                 renderMathInElement(document.body, {{
                     delimiters: [
                         {{left: "$$", right: "$$", display: true}},
-                        {{left: "\\\\[", right: "\\\\]", display: true}},
+                        {{left: "\\[", right: "\\]", display: true}},
                         {{left: "$", right: "$", display: false}},
-                        {{left: "\\\\(", right: "\\\\)", display: false}}
+                        {{left: "\\(", right: "\\)", display: false}}
                     ]
                 }});
             }});
         </script>
         """
 
+        # Add CSS styles
         style = f"""
         <style>
             @font-face {{
@@ -177,9 +205,13 @@ class ViewerWidget(QWidget):
                 max-width: 100%;
                 height: auto;
             }}
+            span[style*="background-color: yellow"] {{
+                font-weight: bold;
+            }}
         </style>
         """
-        
+
+        # Combine everything into the final HTML
         final_html = f"""
         <!DOCTYPE html>
         <html>
@@ -187,7 +219,7 @@ class ViewerWidget(QWidget):
         {katex_script}
         {style}
         </head>
-        <body>{md}</body>
+        <body>{html_content}</body>
         </html>
         """
 
