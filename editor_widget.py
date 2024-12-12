@@ -1,6 +1,22 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFileDialog, QTextEdit, QShortcut
+from PyQt5.QtGui import QFont, QKeySequence
 from PyQt5.QtCore import QTimer
-from PyQt5.QtGui import QFontDatabase, QFont
+import os
+
+
+class EnhancedTextEdit(QTextEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def insert_file_link(self):
+        """
+        Opens a file dialog to select a file and inserts the relative path at the cursor position.
+        """
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select File", "", "All Files (*.*)")
+        if file_path:
+            relative_path = os.path.relpath(file_path, os.getcwd())
+            cursor = self.textCursor()
+            cursor.insertText(relative_path)
 
 
 class EditorWidget(QWidget):
@@ -8,7 +24,7 @@ class EditorWidget(QWidget):
         super().__init__()
         self.update_viewer_callback = update_viewer_callback
         self.layout = QVBoxLayout(self)
-        self.text_edit = QTextEdit(self)
+        self.text_edit = EnhancedTextEdit(self)  # Use EnhancedTextEdit
         self.layout.addWidget(self.text_edit)
 
         # Apply the Raleway font
@@ -25,6 +41,10 @@ class EditorWidget(QWidget):
                 font-family: 'Raleway', sans-serif;
             }
         """)
+
+        # Create the Ctrl+L shortcut
+        self.file_link_shortcut = QShortcut(QKeySequence("Ctrl+L"), self)
+        self.file_link_shortcut.activated.connect(self.insert_file_link)
 
         # Debounce similar to Tkinter version
         self._debounce_delay = 300
@@ -55,3 +75,9 @@ class EditorWidget(QWidget):
 
     def redo(self):
         self.text_edit.redo()
+
+    def insert_file_link(self):
+        """
+        Trigger the file dialog to insert a file link.
+        """
+        self.text_edit.insert_file_link()

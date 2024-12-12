@@ -126,6 +126,7 @@ $
         redo_act = QAction("Redo", self, shortcut="Ctrl+Y", triggered=self.editor.redo)
         edit_menu.addAction(undo_act)
         edit_menu.addAction(redo_act)
+        #edit_menu.addAction(insert_link_act)
 
         # View menu actions
         self.show_editor_act = QAction("Show Editor", self, checkable=True, checked=True)
@@ -135,6 +136,9 @@ $
         self.show_preview_act = QAction("Show Preview", self, checkable=True, checked=True)
         self.show_preview_act.triggered.connect(self.toggle_preview)
         view_menu.addAction(self.show_preview_act)
+
+        #insert_link_act = QAction("Insert File Link", self, shortcut="Ctrl+L", triggered=self.editor.insert_file_link)
+
 
     def toggle_editor(self):
         if self.show_editor_act.isChecked():

@@ -68,6 +68,8 @@ class EditorWidget(QWidget):
 
 ##################################################
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
+import datetime
+import uuid
 
 
 
@@ -118,6 +120,49 @@ class FileManager:
     def close_file(self):
         self.editor_widget.set_content("")
         self.current_file = None
+
+
+    def create_new_file(self):
+        # Generate timestamp and UUID for the file
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%d%m%y_%H%M%S")  # File-safe timestamp
+        nice_date = now.strftime("%d %B %Y")       # Human-readable date
+        nice_time = now.strftime("%H:%M:%S")       # Human-readable time
+        uuid_string = timestamp                    # Use the timestamp as UUID
+
+        # Template content
+        template_content = (
+            f"### Date: {nice_date}\n"
+            f"### Time: {nice_time}\n"
+            f"### UUID: {uuid_string}\n\n"
+            f"# Title:\n\n"
+            f"**Tags**\n\n"
+            f"### Body:\n"
+        )
+
+        # Default filename
+        default_name = f"{timestamp}.md"
+
+        # Show a "Save As" dialog with the default name
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Create New Markdown File", default_name, "Markdown Files (*.md)"
+        )
+
+        if file_path:
+            # Ensure the file has a .md extension
+            if not file_path.endswith(".md"):
+                file_path += ".md"
+            try:
+                # Create the file with the template content
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(template_content)
+                
+                self.current_file = file_path
+                self.editor_widget.set_content(template_content)  # Load template into editor
+                
+                QMessageBox.information(None, "File Created", f"New file created: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Unable to create file: {e}")
 
 
 
@@ -367,6 +412,9 @@ $
         save_as_act = QAction("Save As", self, shortcut="Ctrl+Shift+S", triggered=self.file_manager.save_file_as)
         select_folder_act = QAction("Select Folder", self, triggered=self.select_folder)
         exit_act = QAction("Exit", self, triggered=self.close)
+
+        new_file_act = QAction("New File", self, shortcut="Ctrl+N", triggered=self.file_manager.create_new_file)
+        file_menu.addAction(new_file_act)
 
         file_menu.addAction(open_act)
         file_menu.addAction(save_act)
@@ -627,18 +675,44 @@ class ViewerWidget(QWidget):
         </script>
         """
 
-        style = """
+        # style = """
+        # <style>
+        #     body {
+        #         font-family: 'Raleway', sans-serif;
+        #         font-size: 18px;
+        #         font-weight: 600;
+        #         color: #222;
+        #         background-color: #FFFFEE;
+        #     }
+        # </style>
+        # """
+
+        style = f"""
         <style>
-            body {
+            @font-face {{
+                font-family: 'Raleway';
+                src: url('file://{os.path.join(self.base_path, "assets", "Raleway", "static", "Raleway-Regular.ttf")}');
+                font-weight: 400;
+            }}
+            @font-face {{
+                font-family: 'Raleway';
+                src: url('file://{os.path.join(self.base_path, "assets", "Raleway", "static", "Raleway-Bold.ttf")}');
+                font-weight: 700;
+            }}
+            body {{
                 font-family: 'Raleway', sans-serif;
                 font-size: 18px;
-                font-weight: 600;
+                font-weight: 400; /* Regular weight for normal text */
                 color: #222;
                 background-color: #FFFFEE;
-            }
+            }}
+            strong, b {{
+                font-family: 'Raleway', sans-serif;
+                font-weight: 700; /* Explicitly set bold weight */
+            }}
         </style>
         """
-
+        
         final_html = f"""
         <!DOCTYPE html>
         <html>
@@ -653,7 +727,8 @@ class ViewerWidget(QWidget):
         # Convert base_url to a proper QUrl
         base_qurl = QUrl.fromLocalFile(base_url + os.sep)
         self.webview.setHtml(final_html, base_qurl)
-        print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
+        #print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
+        print("[DEBUG] Generated HTML content:", html_content)
 
     def navigate_back(self):
         """
