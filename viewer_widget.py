@@ -5,6 +5,49 @@ from PyQt5.QtCore import QUrl, Qt, pyqtSignal
 from markdown import markdown
 from mdx_math import MathExtension
 import os
+from markdown.extensions import Extension
+from markdown.postprocessors import Postprocessor
+import re
+from PIL import Image  # For aspect ratio calculation
+
+
+class ImageResizerPostprocessor(Postprocessor):
+    def run(self, text):
+        def replace_image(match):
+            src, alt, params = match.group(1), match.group(2), match.group(3)
+            styles = []
+            if "width" in params:
+                width = re.search(r'width=(\d+)', params).group(1)
+                styles.append(f"width:{width}px")
+            if "height" in params:
+                height = re.search(r'height=(\d+)', params).group(1)
+                styles.append(f"height:{height}px")
+            style_attr = f'style="{";".join(styles)}"' if styles else ""
+            return f'<img src="{src}" alt="{alt}" {style_attr}>'
+
+        return re.sub(
+            r'!\[([^\]]*)\]\(([^)]+)\){([^}]+)}',
+            replace_image,
+            text,
+        )
+
+
+class ImageResizerExtension(Extension):
+    def extendMarkdown(self, md):
+        md.postprocessors.register(ImageResizerPostprocessor(md), 'image_resizer', 175)
+
+
+def calculate_aspect_ratio(image_path, width=None, height=None):
+    """
+    Helper function to calculate the aspect ratio of an image.
+    """
+    img = Image.open(image_path)
+    original_width, original_height = img.size
+    if width and not height:
+        height = int((width / original_width) * original_height)
+    elif height and not width:
+        width = int((height / original_height) * original_width)
+    return width, height
 
 
 class ViewerWidget(QWidget):
@@ -37,46 +80,23 @@ class ViewerWidget(QWidget):
         self.history_back = []
         self.history_forward = []
 
-    # def intercept_link_navigation(self, url, nav_type, is_main_frame):
-    #     """
-    #     Intercept link clicks in the preview window to handle .md files.
-    #     """
-    #     local_path = url.toLocalFile()
-    #     print(f"[DEBUG] Intercepted navigation to: {local_path}")
-    #     if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
-    #         if local_path.endswith(".md"):
-    #             self.navigate_to_file(local_path)
-    #             print(f"[DEBUG] Navigating to Markdown file: {local_path}")
-    #             return False  # Prevent default navigation
-    #     return True
-    
     def intercept_link_navigation(self, url, nav_type, is_main_frame):
-        """
-        Intercept link clicks in the preview window to handle .md files and open external links in the default browser.
-        """
         local_path = url.toLocalFile()
         print(f"[DEBUG] Intercepted navigation to: {url.toString()}")
         if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
             if url.toString().startswith(("http://", "https://")):
-                # Open external links in the system's default web browser
                 from PyQt5.QtGui import QDesktopServices
                 QDesktopServices.openUrl(url)
                 print(f"[DEBUG] Opened external link in browser: {url.toString()}")
                 return False  # Prevent default navigation
             elif local_path.endswith(".md"):
-                # Handle Markdown file navigation
                 self.navigate_to_file(local_path)
                 print(f"[DEBUG] Navigating to Markdown file: {local_path}")
                 return False  # Prevent default navigation
         return True
 
-
     def navigate_to_file(self, file_path):
-        """
-        Navigate to a new file, adding it to the history.
-        """
         if self.current_file_path:
-            # Add the current file to the back history only if it's not already the last entry
             if not self.history_back or self.history_back[-1] != self.current_file_path:
                 self.history_back.append(self.current_file_path)
                 print(f"[DEBUG] Added to Back History: {self.current_file_path}")
@@ -84,17 +104,12 @@ class ViewerWidget(QWidget):
         else:
             print(f"[DEBUG] First navigation to: {file_path}")
 
-        # Clear the forward history when navigating to a new file
         self.history_forward.clear()
         print(f"[DEBUG] Cleared Forward Stack: {self.history_forward}")
 
-        # Load the new file
         self.load_markdown_file(file_path)
 
     def load_markdown_file(self, file_path):
-        """
-        Load and render a Markdown file in the preview window.
-        """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -105,16 +120,14 @@ class ViewerWidget(QWidget):
             print(f"[DEBUG] Error loading Markdown file: {e}")
 
     def update_content(self, markdown_text, base_url):
-        """
-        Convert Markdown to HTML and display it in the web view.
-        """
         self.current_markdown = markdown_text
-        html_content = markdown(
+        md = markdown(
             markdown_text,
             extensions=[
                 'extra',
                 'codehilite',
-                MathExtension()
+                MathExtension(),
+                ImageResizerExtension()  # Add custom extension
             ]
         )
 
@@ -141,18 +154,6 @@ class ViewerWidget(QWidget):
         </script>
         """
 
-        # style = """
-        # <style>
-        #     body {
-        #         font-family: 'Raleway', sans-serif;
-        #         font-size: 18px;
-        #         font-weight: 600;
-        #         color: #222;
-        #         background-color: #FFFFEE;
-        #     }
-        # </style>
-        # """
-
         style = f"""
         <style>
             @font-face {{
@@ -168,13 +169,13 @@ class ViewerWidget(QWidget):
             body {{
                 font-family: 'Raleway', sans-serif;
                 font-size: 18px;
-                font-weight: 400; /* Regular weight for normal text */
+                font-weight: 400;
                 color: #222;
                 background-color: #FFFFEE;
             }}
-            strong, b {{
-                font-family: 'Raleway', sans-serif;
-                font-weight: 700; /* Explicitly set bold weight */
+            img {{
+                max-width: 100%;
+                height: auto;
             }}
         </style>
         """
@@ -186,50 +187,28 @@ class ViewerWidget(QWidget):
         {katex_script}
         {style}
         </head>
-        <body>{html_content}</body>
+        <body>{md}</body>
         </html>
         """
 
-        # Convert base_url to a proper QUrl
         base_qurl = QUrl.fromLocalFile(base_url + os.sep)
         self.webview.setHtml(final_html, base_qurl)
-        #print(f"[DEBUG] HTML content set for base URL: {base_qurl.toString()}")
-        print("[DEBUG] Generated HTML content:", html_content)
+        print("[DEBUG] HTML content updated.")
 
     def navigate_back(self):
-        """
-        Navigate to the previous file in history.
-        """
         if self.history_back:
             last_file = self.history_back.pop()
             self.history_forward.append(self.current_file_path)
-            print(f"[DEBUG] Popped from Back History: {last_file}")
-            print(f"[DEBUG] Added to Forward Stack: {self.current_file_path}")
             self.load_markdown_file(last_file)
-            print(f"[DEBUG] Navigated Back to: {last_file}")
-        else:
-            print("[DEBUG] No more history to go back.")
 
     def navigate_forward(self):
-        """
-        Navigate to the next file in history.
-        """
         if self.history_forward:
             next_file = self.history_forward.pop()
             self.history_back.append(self.current_file_path)
-            print(f"[DEBUG] Popped from Forward History: {next_file}")
-            print(f"[DEBUG] Added to Back Stack: {self.current_file_path}")
             self.load_markdown_file(next_file)
-            print(f"[DEBUG] Navigated Forward to: {next_file}")
-        else:
-            print("[DEBUG] No more history to go forward.")
 
     def show_context_menu(self, position):
-        """
-        Show a context menu in the preview window for additional actions.
-        """
         menu = QMenu(self)
-
         open_in_editor_action = menu.addAction("Open in Editor")
         back_action = menu.addAction("Back")
         forward_action = menu.addAction("Forward")
@@ -238,10 +217,8 @@ class ViewerWidget(QWidget):
         forward_action.setEnabled(len(self.history_forward) > 0)
 
         action = menu.exec_(self.webview.mapToGlobal(position))
-        print(f"[DEBUG] Context menu action triggered: {action.text() if action else 'None'}")
 
         if action == open_in_editor_action and self.current_file_path:
-            print(f"[DEBUG] Emitting 'file_selected_for_editor' with: {self.current_file_path}")
             self.file_selected_for_editor.emit(self.current_file_path)
         elif action == back_action:
             self.navigate_back()
